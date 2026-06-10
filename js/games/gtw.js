@@ -157,6 +157,22 @@ const GTWCore = (() => {
     }));
   }
 
+  // A saturation wave: many staggered arcs from the launch fields spread
+  // across the enemy targets, so the board fills with a fan of tracks.
+  function fanMissiles(sites, targets, count, rng = Math.random) {
+    const out = [];
+    for (let i = 0; i < count; i++) {
+      const site = sites[Math.floor(rng() * sites.length)];
+      const target = targets[Math.floor(rng() * targets.length)];
+      out.push({
+        target,
+        start: Math.floor(rng() * 18),
+        path: plotPath(site, [target.x, target.y]),
+      });
+    }
+    return out;
+  }
+
   function buildFrame(headerLines, missiles, tick) {
     const grid = MAP.map((row) => row.split(""));
     let inbound = 0;
@@ -232,6 +248,7 @@ const GTWCore = (() => {
     pickRandom,
     plotPath,
     makeMissiles,
+    fanMissiles,
     buildFrame,
     casualties,
     columns,
@@ -369,7 +386,10 @@ async function playGTW(term, state) {
   term.print("");
   await term.type("LAUNCH CODES ACCEPTED. SIMULATION RUNNING.", { cps: 40 });
   term.print("");
-  const strike = GTWCore.makeMissiles(attackSites, chosen);
+  const strike = [
+    ...GTWCore.makeMissiles(attackSites, chosen),
+    ...GTWCore.fanMissiles(attackSites, enemyTargets, 18),
+  ];
   await runVolley(term, [side + " FIRST STRIKE"], strike);
   term.print("");
   await term.type("TARGETS DESTROYED: " + chosen.map((c) => c.name).join(", "));
@@ -383,7 +403,10 @@ async function playGTW(term, state) {
   );
   term.print("");
   const counterTargets = GTWCore.pickRandom(homeTargets, 5);
-  const counter = GTWCore.makeMissiles(retaliateSites, counterTargets);
+  const counter = [
+    ...GTWCore.makeMissiles(retaliateSites, counterTargets),
+    ...GTWCore.fanMissiles(retaliateSites, homeTargets, 16),
+  ];
   await runVolley(term, ["RETALIATORY STRIKE IN PROGRESS"], counter);
   term.print("");
   await term.type("TARGETS DESTROYED: " + counterTargets.map((c) => c.name).join(", "));

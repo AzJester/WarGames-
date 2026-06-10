@@ -638,8 +638,8 @@ function setTimer(term, budget, ticks) {
 async function blizzard(term) {
   const all = [...GTWCore.TARGETS_US, ...GTWCore.TARGETS_USSR];
   const sites = [...GTWCore.LAUNCH_US, ...GTWCore.LAUNCH_USSR];
-  const picks = GTWCore.pickRandom(all, 10);
-  const missiles = GTWCore.makeMissiles(sites, picks);
+  // Every plan at once: a dense fan of tracks crossing the whole board.
+  const missiles = GTWCore.fanMissiles(sites, all, 40);
   const header = ["GLOBAL THERMONUCLEAR WAR", "SIMULATION RUNNING — ALL SCENARIOS", ""];
   const frame = term.frame("map");
   const max = Math.max(...missiles.map((m) => m.start + m.path.length - 1));
