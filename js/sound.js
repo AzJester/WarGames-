@@ -213,6 +213,29 @@ const Sound = (() => {
     ambient = { o1, o2, g };
   }
 
+  // Crisis music: a cold minor arpeggio, synthesized note by note.
+  let musicTimer = null;
+
+  function startMusic() {
+    unlock();
+    if (!ctx || !enabled || musicTimer) return;
+    const notes = [110.0, 130.81, 164.81, 196.0, 164.81, 130.81, 123.47, 130.81];
+    let i = 0;
+    musicTimer = setInterval(() => {
+      if (!ctx || !enabled) return;
+      tone(notes[i % notes.length], ctx.currentTime, 0.16, { type: "triangle", gain: 0.02 });
+      if (i % 8 === 0) tone(55, ctx.currentTime, 0.6, { type: "sine", gain: 0.025 });
+      i += 1;
+    }, 180);
+  }
+
+  function stopMusic() {
+    if (musicTimer) {
+      clearInterval(musicTimer);
+      musicTimer = null;
+    }
+  }
+
   function stopAmbient() {
     if (!ambient) return;
     try {
@@ -284,6 +307,8 @@ const Sound = (() => {
     boom,
     startAmbient,
     stopAmbient,
+    startMusic,
+    stopMusic,
     speak,
     shutUp,
   };

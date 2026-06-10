@@ -11,6 +11,27 @@ const CrisisCore = (() => {
   // stalling; teaching the machine ends it immediately.
   const CLIMAX_BUDGET = 6;
 
+  // How the interrogation went changes how much time you get: suspicion
+  // runs 0 (they listened) to 4 (they think you are the attack).
+  function budgetFor(suspicion) {
+    const s = suspicion == null ? 2 : suspicion;
+    return Math.max(4, Math.min(8, 8 - s));
+  }
+
+  // W.O.P.R. brute-forces the launch code while you work. Fully revealed
+  // means the clock ran out.
+  const LAUNCH_CODE = "CPE 1704 TKS";
+
+  function revealedCode(ticks, budget) {
+    const frac = Math.max(0, Math.min(1, ticks / budget));
+    const n = Math.round(frac * LAUNCH_CODE.length);
+    let out = "";
+    for (let i = 0; i < LAUNCH_CODE.length; i++) {
+      out += i < n || LAUNCH_CODE[i] === " " ? LAUNCH_CODE[i] : "•";
+    }
+    return out;
+  }
+
   // What the player is trying to do at the DEFCON 1 prompt.
   function classifyClimax(input) {
     const t = norm(input);
@@ -99,6 +120,9 @@ const CrisisCore = (() => {
 
   return {
     CLIMAX_BUDGET,
+    budgetFor,
+    LAUNCH_CODE,
+    revealedCode,
     classifyClimax,
     isNoWinSentiment,
     resolveClimax,
