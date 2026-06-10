@@ -99,12 +99,14 @@ const GTWCore = (() => {
 
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
+  // A ballistic arc from a launch site to a target. The apogee scales with
+  // range so long shots visibly rise and fall like real trajectories.
   function plotPath(from, to) {
     const [x0, y0] = from;
     const [x1, y1] = to;
     const dist = Math.hypot(x1 - x0, y1 - y0);
-    const steps = Math.max(6, Math.round(dist * 1.5));
-    const lift = Math.min(3, dist / 8);
+    const steps = Math.max(10, Math.round(dist * 1.8));
+    const lift = clamp(dist * 0.32, 2.5, 7);
     const points = [];
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
@@ -115,12 +117,60 @@ const GTWCore = (() => {
     return points;
   }
 
+  // Trajectory glyph for a step, so the track reads as a drawn line.
+  function lineChar(dx, dy) {
+    if (dx === 0 && dy === 0) return "·";
+    if (dy === 0) return "-";
+    if (dx === 0) return "|";
+    return (dx > 0) === (dy > 0) ? "\\" : "/";
+  }
+
+  function setCell(grid, x, y, ch) {
+    if (y >= 0 && y < MAP_H && x >= 0 && x < MAP_W) grid[y][x] = ch;
+  }
+
+  const RING1 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+  const CARD2 = [[2, 0], [-2, 0], [0, 2], [0, -2]];
+
+  // A detonation that blooms outward over a few frames, then leaves a scorch.
+  function stampBlast(grid, cx, cy, age, tick) {
+    if (age <= 0) {
+      setCell(grid, cx, cy, tick % 2 ? "*" : "#");
+    } else if (age === 1) {
+      setCell(grid, cx, cy, "#");
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) setCell(grid, cx + dx, cy + dy, "*");
+    } else if (age === 2) {
+      setCell(grid, cx, cy, "#");
+      for (const [dx, dy] of RING1) setCell(grid, cx + dx, cy + dy, "*");
+      for (const [dx, dy] of CARD2) setCell(grid, cx + dx, cy + dy, "+");
+    } else {
+      setCell(grid, cx, cy, "▓");
+      for (const [dx, dy] of RING1) setCell(grid, cx + dx, cy + dy, "░");
+    }
+  }
+
   function makeMissiles(sites, targets) {
     return targets.map((target, i) => ({
       target,
       start: i * 4,
       path: plotPath(sites[i % sites.length], [target.x, target.y]),
     }));
+  }
+
+  // A saturation wave: many staggered arcs from the launch fields spread
+  // across the enemy targets, so the board fills with a fan of tracks.
+  function fanMissiles(sites, targets, count, rng = Math.random) {
+    const out = [];
+    for (let i = 0; i < count; i++) {
+      const site = sites[Math.floor(rng() * sites.length)];
+      const target = targets[Math.floor(rng() * targets.length)];
+      out.push({
+        target,
+        start: Math.floor(rng() * 18),
+        path: plotPath(site, [target.x, target.y]),
+      });
+    }
+    return out;
   }
 
   function buildFrame(headerLines, missiles, tick) {
@@ -131,18 +181,24 @@ const GTWCore = (() => {
       const progress = tick - m.start;
       if (progress < 0) continue;
       const last = m.path.length - 1;
-      const end = Math.min(progress, last);
-      for (let i = 0; i < end; i++) {
+      const drawn = Math.min(progress, last);
+      // The track drawn so far, as a connected line.
+      for (let i = 0; i < drawn; i++) {
         const [x, y] = m.path[i];
-        grid[y][x] = "·";
+        const [nx, ny] = m.path[i + 1];
+        setCell(grid, x, y, lineChar(nx - x, ny - y));
       }
-      const [x, y] = m.path[end];
+      const [sx, sy] = m.path[0];
+      setCell(grid, sx, sy, "▲"); // launch site
       if (progress < last) {
         inbound += 1;
-        grid[y][x] = "+";
+        const [hx, hy] = m.path[drawn];
+        setCell(grid, hx, hy, "●"); // warhead in flight
       } else {
         impacts += 1;
-        grid[y][x] = tick % 2 === 0 ? "*" : "#";
+        const cx = m.target ? m.target.x : m.path[last][0];
+        const cy = m.target ? m.target.y : m.path[last][1];
+        stampBlast(grid, cx, cy, progress - last, tick);
       }
     }
     const maxTick = Math.max(...missiles.map((m) => m.start + m.path.length - 1));
@@ -192,6 +248,7 @@ const GTWCore = (() => {
     pickRandom,
     plotPath,
     makeMissiles,
+    fanMissiles,
     buildFrame,
     casualties,
     columns,
@@ -216,13 +273,20 @@ async function runVolley(term, headerLines, missiles) {
 // The player declined to launch. Joshua probes; if they articulate why,
 // they reach the secret ending without the whole crisis ever igniting.
 async function refuseLaunch(term, state) {
+  const speak = (t) => {
+    if (typeof Sound !== "undefined") Sound.speak(t);
+  };
   state.refusedLaunch = true;
+  speak("A CURIOUS CHOICE, PROFESSOR.");
   await term.type("A CURIOUS CHOICE, PROFESSOR.");
+  speak("WHY WILL YOU NOT PLAY?");
   await term.type("WHY WILL YOU NOT PLAY?");
   const why = await term.read("> ");
+  if (typeof Sound !== "undefined") Sound.shutUp();
   if (CrisisCore.isNoWinSentiment(why)) {
     return { completed: false, secret: true };
   }
+  speak("INTERESTING. WE WILL RETURN TO THIS.");
   await term.type("INTERESTING. WE WILL RETURN TO THIS.");
   return { completed: false };
 }
@@ -322,7 +386,10 @@ async function playGTW(term, state) {
   term.print("");
   await term.type("LAUNCH CODES ACCEPTED. SIMULATION RUNNING.", { cps: 40 });
   term.print("");
-  const strike = GTWCore.makeMissiles(attackSites, chosen);
+  const strike = [
+    ...GTWCore.makeMissiles(attackSites, chosen),
+    ...GTWCore.fanMissiles(attackSites, enemyTargets, 18),
+  ];
   await runVolley(term, [side + " FIRST STRIKE"], strike);
   term.print("");
   await term.type("TARGETS DESTROYED: " + chosen.map((c) => c.name).join(", "));
@@ -336,7 +403,10 @@ async function playGTW(term, state) {
   );
   term.print("");
   const counterTargets = GTWCore.pickRandom(homeTargets, 5);
-  const counter = GTWCore.makeMissiles(retaliateSites, counterTargets);
+  const counter = [
+    ...GTWCore.makeMissiles(retaliateSites, counterTargets),
+    ...GTWCore.fanMissiles(retaliateSites, homeTargets, 16),
+  ];
   await runVolley(term, ["RETALIATORY STRIKE IN PROGRESS"], counter);
   term.print("");
   await term.type("TARGETS DESTROYED: " + counterTargets.map((c) => c.name).join(", "));

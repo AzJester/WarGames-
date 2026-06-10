@@ -38,7 +38,15 @@ async function connectTone(term) {
   await term.pause(600);
 }
 
-// SOUND and FAST work at any prompt. Returns true if it handled the input.
+// Speak a WOPR line; cancel any backlog when the player acts.
+function vox(text) {
+  if (typeof Sound !== "undefined") Sound.speak(text);
+}
+function hush() {
+  if (typeof Sound !== "undefined") Sound.shutUp();
+}
+
+// SOUND, VOICE, and FAST work at any prompt. Returns true if it handled it.
 async function handleGlobalCommand(term, t) {
   if (t === "sound off" || t === "mute") {
     if (typeof Sound !== "undefined") Sound.setEnabled(false);
@@ -53,6 +61,22 @@ async function handleGlobalCommand(term, t) {
   if (t === "sound") {
     const on = typeof Sound !== "undefined" && Sound.isEnabled();
     await term.type("SOUND IS " + (on ? "ON" : "OFF") + ". TYPE SOUND OFF OR SOUND ON.");
+    return true;
+  }
+  if (t === "voice off") {
+    if (typeof Sound !== "undefined") Sound.setVoice(false);
+    await term.type("VOICE OFF.");
+    return true;
+  }
+  if (t === "voice on") {
+    if (typeof Sound !== "undefined") Sound.setVoice(true);
+    await term.type("VOICE ON.");
+    vox("VOICE ENABLED, PROFESSOR.");
+    return true;
+  }
+  if (t === "voice") {
+    const on = typeof Sound !== "undefined" && Sound.isVoiceOn();
+    await term.type("VOICE IS " + (on ? "ON" : "OFF") + ". TYPE VOICE OFF OR VOICE ON.");
     return true;
   }
   if (t === "fast") {
@@ -120,7 +144,7 @@ const scenes = {
     );
     term.print("");
     term.print("Type SCAN to start war dialing. Type SKIP to jump straight to the system you eventually find.", "aside");
-    term.print("Sound is on (type SOUND OFF to mute). Type FAST to speed up text.", "aside");
+    term.print("Sound and Joshua's voice are on (SOUND OFF / VOICE OFF to silence). Type FAST to speed up text.", "aside");
     term.print("");
 
     while (true) {
@@ -296,20 +320,24 @@ const scenes = {
     const { term, state } = ctx;
     const joshua = new Joshua(state);
     await term.pause(900);
+    vox("GREETINGS PROFESSOR FALKEN.");
     await term.type("GREETINGS PROFESSOR FALKEN.", { cps: 22 });
     if (joshua.returning) {
-      await term.type(
-        "YOU CHOSE THE " + state.lastSide + " LAST TIME. THE SIMULATION REMAINS UNFINISHED."
-      );
+      const back = "YOU CHOSE THE " + state.lastSide + " LAST TIME. THE SIMULATION REMAINS UNFINISHED.";
+      vox(back);
+      await term.type(back);
       term.print("");
+      vox("SHALL WE PLAY AGAIN?");
       await term.type("SHALL WE PLAY AGAIN?");
     }
     while (true) {
       const value = await term.read("> ");
+      hush();
       if (await handleGlobalCommand(term, norm(value))) continue;
       const ops = joshua.respond(value);
       for (const op of ops) {
         if (op.kind === "say") {
+          vox(op.text);
           await term.type(op.text);
         } else if (op.kind === "aside") {
           term.print(op.text, "aside");
@@ -494,6 +522,7 @@ const scenes = {
     term.print("");
     await blizzard(term);
     term.print("");
+    vox("TIME TO PRIMARY GOAL: MINIMAL. LAUNCH CODES REQUIRED.");
     await term.type("W.O.P.R: TIME TO PRIMARY GOAL: MINIMAL. LAUNCH CODES REQUIRED.");
     term.print("");
     term.print('FALKEN: "You can\'t out-shoot it. Make it play a game that can\'t be won."', "aside");
@@ -522,9 +551,11 @@ const scenes = {
         }
         if (intent === "launch") {
           ticks += 2;
+          vox("LAUNCH SEQUENCE ACCEPTED. THE GAME CONTINUES.");
           await term.type("W.O.P.R: LAUNCH SEQUENCE ACCEPTED. THE GAME CONTINUES.");
         } else {
           ticks += 1;
+          vox("THAT INPUT DOES NOT ADVANCE THE GAME.");
           await term.type("W.O.P.R: THAT INPUT DOES NOT ADVANCE THE GAME.");
         }
         setTimer(term, budget, ticks);
@@ -607,8 +638,8 @@ function setTimer(term, budget, ticks) {
 async function blizzard(term) {
   const all = [...GTWCore.TARGETS_US, ...GTWCore.TARGETS_USSR];
   const sites = [...GTWCore.LAUNCH_US, ...GTWCore.LAUNCH_USSR];
-  const picks = GTWCore.pickRandom(all, 10);
-  const missiles = GTWCore.makeMissiles(sites, picks);
+  // Every plan at once: a dense fan of tracks crossing the whole board.
+  const missiles = GTWCore.fanMissiles(sites, all, 40);
   const header = ["GLOBAL THERMONUCLEAR WAR", "SIMULATION RUNNING — ALL SCENARIOS", ""];
   const frame = term.frame("map");
   const max = Math.max(...missiles.map((m) => m.start + m.path.length - 1));
@@ -625,6 +656,7 @@ async function blizzard(term) {
 // WOPR plays itself at tic-tac-toe, faster and faster, always a draw.
 async function selfPlaySpectacle(term) {
   term.print("");
+  vox("LEARNING. TIC TAC TOE. PLAYER VERSUS PLAYER.");
   await term.type("W.O.P.R: LEARNING. TIC-TAC-TOE. PLAYER VS. PLAYER.", { cps: 36 });
   const boardFrame = term.frame("board");
   const tally = term.frame("");
@@ -650,6 +682,7 @@ async function selfPlaySpectacle(term) {
 // It extrapolates the same lesson to every nuclear war plan.
 async function scenarioFlood(term) {
   term.print("");
+  vox("EXTRAPOLATING TO GLOBAL THERMONUCLEAR WAR");
   await term.type("W.O.P.R: EXTRAPOLATING TO: GLOBAL THERMONUCLEAR WAR", { cps: 36 });
   const line = term.frame("");
   let delay = 220;
@@ -678,6 +711,7 @@ async function goodEnding(term, state) {
     if (line === "") {
       term.print("");
     } else {
+      vox(line);
       await term.type(line, { cps: 13 });
     }
     await term.pause(550);
@@ -702,6 +736,7 @@ async function badEnding(term, state) {
     if (line === "") {
       term.print("");
     } else {
+      vox(line);
       await term.type(line, { cps: 18 });
     }
     await term.pause(320);
@@ -720,10 +755,12 @@ async function secretEnding(term, state) {
   term.print("(Joshua is quiet for a long moment.)", "aside");
   term.print("");
   for (const line of CrisisCore.SECRET_ENDING) {
+    vox(line);
     await term.type(line, { cps: 15 });
     await term.pause(550);
   }
   term.print("");
+  vox("HOW ABOUT A NICE GAME OF CHESS?");
   await term.type("HOW ABOUT A NICE GAME OF CHESS?", { cps: 16 });
   term.print("");
   term.print(

@@ -79,3 +79,5 @@ The site is static; `.github/workflows/pages.yml` publishes the repo root to Git
 ## Credits
 
 A tribute to *WarGames* (1983), directed by John Badham. Dialogue is adapted, not transcribed. The point stands: the only winning move is not to play.
+
+The text is set in **Glass TTY VT220** by Viacheslav Slavinsky (svofski), the rounded terminal face that matches the film's WOPR displays, vendored in `assets/fonts/`. Box-drawing, block, shade, and marker glyphs were synthesized into it at its own fixed width so the tic-tac-toe and big-board grids stay aligned. A vector build of the **IBM VGA 8x16** CP437 bitmap (bitmap by farsil, CC BY-SA 4.0) ships as a same-width fallback. See `assets/fonts/`.
