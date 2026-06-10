@@ -2,7 +2,7 @@
 
 An interactive recreation of the 1983 film *WarGames*, played entirely in a retro green-phosphor CRT terminal in your browser. You are David Lightman: a bored teenager with a modem who dials into the wrong computer and nearly starts World War III. The only way out is to teach the machine the lesson it was never given.
 
-**▶ Play: https://azjester.github.io/wargames-/**
+**▶ Play: https://azjester.github.io/WarGames-/**
 
 <p align="center">
   <img src="assets/title.svg" alt="WarGames title screen" width="49%">
