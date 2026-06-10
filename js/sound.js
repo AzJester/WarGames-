@@ -141,13 +141,31 @@ const Sound = (() => {
 
   function click() {
     if (!ctx || !enabled) return;
-    tone(1400 + Math.random() * 220, ctx.currentTime, 0.012, { type: "square", gain: 0.014 });
+    tone(1400 + Math.random() * 220, ctx.currentTime, 0.012, { type: "square", gain: 0.022 });
   }
 
   function beep() {
     unlock();
     if (!ctx || !enabled) return;
     tone(880, ctx.currentTime, 0.08, { type: "square", gain: 0.04 });
+  }
+
+  // CRT power-up: a low hum swelling under a confirmation beep. Played on
+  // the power-on keypress, so it doubles as the audio-unlock confirmation.
+  function powerOn() {
+    unlock();
+    if (!ctx || !enabled) return;
+    const t = ctx.currentTime;
+    tone(45, t, 0.9, { type: "sawtooth", gain: 0.05, glideTo: 110 });
+    tone(880, t + 0.55, 0.09, { type: "square", gain: 0.045 });
+    tone(1320, t + 0.7, 0.07, { type: "square", gain: 0.035 });
+    hiss(t + 0.05, 0.5, 0.02);
+  }
+
+  // One autodialer blip per scanned number.
+  function tick() {
+    if (!ctx || !enabled) return;
+    tone(1320, ctx.currentTime, 0.025, { type: "square", gain: 0.03 });
   }
 
   // WOPR's synthesized voice. Lines are queued; new player input cancels
@@ -203,6 +221,8 @@ const Sound = (() => {
     klaxon,
     click,
     beep,
+    powerOn,
+    tick,
     speak,
     shutUp,
   };

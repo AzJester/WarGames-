@@ -116,7 +116,16 @@ const scenes = {
     const { term, state } = ctx;
     for (const row of TITLE) term.print(row, "title");
     term.print("");
-    await term.pause(300);
+    // Browsers keep audio muted until the first interaction, so gate the
+    // boot behind a keypress and use it to unlock and confirm sound.
+    term.print("[ PRESS ENTER TO POWER ON ]", "aside");
+    await term.read("");
+    if (typeof Sound !== "undefined") {
+      Sound.unlock();
+      Sound.powerOn();
+    }
+    term.print("");
+    await term.pause(900);
 
     // A returning player who already found WOPR skips the search.
     if (state.metWopr) {
@@ -174,6 +183,7 @@ const scenes = {
       const cls = connected ? "" : "dim";
       let row = entry.num.padEnd(11) + entry.result;
       if (entry.banner) row += "   " + entry.banner;
+      if (typeof Sound !== "undefined") Sound.tick();
       await term.type(row, { cps: 120, cls });
       await term.pause(connected ? 220 : 90);
     }

@@ -47,6 +47,8 @@ check("every method is a safe no-op without WebAudio or speech", () => {
     Sound.klaxon();
     Sound.click();
     Sound.beep();
+    Sound.powerOn();
+    Sound.tick();
     Sound.speak("GREETINGS PROFESSOR FALKEN.");
     Sound.shutUp();
   });
