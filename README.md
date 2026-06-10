@@ -41,7 +41,7 @@ Stuck? The system's designer had a son. Or type `RESEARCH FALKEN`.
 ## Accessibility
 
 - All animation (flicker, scanlines, the cursor, the bad-ending flash) is reduced or disabled under `prefers-reduced-motion`.
-- Sound is opt-out and persists. WebAudio only starts after your first keypress, per browser policy.
+- Sound is opt-out and persists. Browsers keep audio muted until your first interaction, so the game opens with a "press Enter to power on" gate; that keypress unlocks audio and plays the CRT power-up hum.
 - The game is fully keyboard-driven; output is mirrored to an `aria-live` log region for screen readers.
 
 ## Development
