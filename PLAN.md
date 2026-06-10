@@ -128,6 +128,12 @@ Alternative considered: a Python CLI with `curses`. Rejected as primary because 
 
 ---
 
+### M6: Modern mode (post-ship, by request)
+- A modern presentation layer over the same game logic. Canvas-rendered big board: glowing dot-matrix world map, smooth bezier missile arcs with comet heads, expanding impact rings, live track counters.
+- Sound v2: launch whoosh, impact boom, war-room ambience during volleys.
+- `MODE MODERN` (default) / `MODE CLASSIC` toggle, persisted. ASCII board remains the fallback wherever canvas is unavailable and under reduced motion the final frame renders without animation.
+- **Done when**: a volley renders as animated vector arcs with audio, and CLASSIC still gives the original board.
+
 ## 5. Stretch Goals
 - Playable chess and checkers with real (weak) AIs.
 - Speech synthesis for Joshua's lines (WebSpeech API, heavily filtered).

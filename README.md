@@ -33,7 +33,8 @@ Three endings, including a quiet one for the player who refuses to launch and ca
 
 - Type and press Enter. Any key or tap skips the typewriter (and the animations).
 - Up/Down arrows recall input history. Escape clears the line.
-- `SOUND OFF` / `SOUND ON` toggle audio (on by default). `FAST` / `SLOW` change text speed.
+- `SOUND OFF` / `SOUND ON` toggle audio (on by default). `VOICE OFF` silences Joshua. `FAST` / `SLOW` change text speed.
+- `MODE MODERN` (default) renders the big board on canvas: a glowing dot-matrix world map with smooth ballistic arcs, comet heads, impact rings, launch whooshes, and impact booms. `MODE CLASSIC` switches back to the pure ASCII board.
 - `SKIP` at the title jumps to the system. `RESET` at the `LOGON:` prompt wipes saved progress.
 
 Stuck? The system's designer had a son. Or type `RESEARCH FALKEN`.

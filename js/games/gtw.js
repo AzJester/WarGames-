@@ -257,6 +257,16 @@ const GTWCore = (() => {
 
 async function runVolley(term, headerLines, missiles) {
   const header = ["GLOBAL THERMONUCLEAR WAR", ...headerLines, ""];
+  if (typeof Modern !== "undefined" && Modern.isModern()) {
+    if (typeof Sound !== "undefined") Sound.startAmbient();
+    const rendered = Modern.renderVolley(term, header.filter(Boolean), missiles);
+    if (rendered) {
+      await rendered;
+      if (typeof Sound !== "undefined") Sound.stopAmbient();
+      return;
+    }
+    if (typeof Sound !== "undefined") Sound.stopAmbient();
+  }
   const maxTick = Math.max(...missiles.map((m) => m.start + m.path.length - 1));
   const total = maxTick + 6;
   const frame = term.frame("map");

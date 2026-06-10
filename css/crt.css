@@ -97,6 +97,16 @@ html, body {
   line-height: 1.2;
 }
 
+.line.canvas-line {
+  min-height: 0;
+  margin: 0.6em 0;
+}
+.line.canvas-line canvas {
+  display: block;
+  border: 1px solid rgba(58, 255, 110, 0.45);
+  box-shadow: 0 0 14px rgba(58, 255, 110, 0.15), inset 0 0 24px rgba(0, 0, 0, 0.5);
+}
+
 .cursor {
   display: inline-block;
   margin-left: 1px;
