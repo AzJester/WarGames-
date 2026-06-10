@@ -111,7 +111,8 @@ Alternative considered: a Python CLI with `curses`. Rejected as primary because 
 
 ### M3: Acts 1-2 (the setup)
 - War-dial minigame with a generated number pool and flavor responses.
-- Falken research puzzle (in-game archive articles, obituary, the `joshua` discovery).
+- Falken research puzzle (in-game archive articles, obituary, the `joshua` discovery), tuned easy: two or three steps, clues clearly surfaced, no red herrings that block progress.
+- `SKIP` command offered at boot, jumping straight to the WOPR connection (Acts 1-2 are optional even on a first play; the logon hint ladder covers skippers).
 - **Done when**: a new player can reach WOPR with no out-of-game knowledge.
 
 ### M4: Acts 4-5 (the crisis and climax)
@@ -120,7 +121,7 @@ Alternative considered: a Python CLI with `curses`. Rejected as primary because 
 - **Done when**: the game is completable start to finish.
 
 ### M5: Polish and ship
-- Sound (modem handshake on connect, klaxon at DEFCON 2).
+- Sound on by default (modem handshake on connect, klaxon at DEFCON 2) with a `SOUND OFF` opt-out persisted in localStorage.
 - Skip/fast-forward for replays, accessibility pass (reduced-motion mode disables flicker, full keyboard play, screen-reader-friendly output region).
 - GitHub Pages deployment, README rewrite with screenshots and a play link.
 - **Done when**: the link is public and a stranger can finish the game.
@@ -142,7 +143,10 @@ Alternative considered: a Python CLI with `curses`. Rejected as primary because 
 
 ---
 
-## 7. Open Questions
-1. Should Acts 1-2 be skippable on first play for impatient players, or only after one completion?
-2. Sound on by default, or opt-in? (Modem handshake is iconic but loud.)
-3. Difficulty of the Falken research puzzle: guided (clues highlight) vs. genuine digging.
+## 7. Decisions
+
+Resolved 2026-06-10:
+
+1. **Acts 1-2 are skippable, including on a first play.** A `SKIP` command at boot jumps straight to the WOPR connection. The escalating logon hints already shipped in M1 stay, so skippers can still find the password without out-of-game knowledge.
+2. **Sound is on by default, with an opt-out.** `SOUND OFF` / `SOUND ON` commands, preference persisted in localStorage. Browsers block audio until the first user gesture, so the modem handshake starts on the first keypress or tap rather than at page load.
+3. **The Falken research puzzle is easy.** Two or three steps with clues clearly surfaced: search the archive, the Falken article points to the obituary, the obituary names Joshua. The aside hints remain as a safety net.
