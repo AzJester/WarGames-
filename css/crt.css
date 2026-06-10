@@ -52,6 +52,16 @@ html, body {
 
 .mirror { text-transform: uppercase; }
 
+.line.board {
+  white-space: pre;
+}
+
+.line.map {
+  white-space: pre;
+  font-size: clamp(7px, 1.45vw, 14px);
+  line-height: 1.2;
+}
+
 .cursor {
   display: inline-block;
   margin-left: 1px;

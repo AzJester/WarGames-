@@ -16,19 +16,26 @@ python3 -m http.server 8000
 ## Controls
 
 - Type and press Enter.
-- Any key or tap skips the typewriter effect.
+- Any key or tap skips the typewriter effect (including the missile animations).
 - Up/Down arrows recall input history. Escape clears the line.
+- Typing `RESET` at the `LOGON:` prompt wipes your saved progress.
 
 Stuck at `LOGON:`? The system's designer had a son.
 
+## What's playable
+
+- **Tic-tac-toe** against Joshua. He plays perfectly. Draw your conclusions.
+- **Global Thermonuclear War**: pick a side, list primary targets by city and/or country, confirm the commit, and watch the big board. The machine remembers which side you chose.
+
 ## Status
 
-Milestone 1 of 5 (see [PLAN.md](PLAN.md)): the terminal foundation and the opening exchange. Dial in, get past `LOGON:`, talk to Joshua, browse the game list. The playable games, the war-dialing act, and the DEFCON crisis arrive in later milestones.
+Milestone 2 of 5 (see [PLAN.md](PLAN.md)): the terminal, the opening exchange, save/load, and the first two playable games. The war-dialing act, the Falken research puzzle, and the DEFCON crisis arrive in later milestones.
 
 ## Development
 
-Plain HTML/CSS/JS, classic scripts, no toolchain. The dialogue engine (`js/wopr.js`) is DOM-free and covered by a smoke test:
+Plain HTML/CSS/JS, classic scripts, no toolchain. The dialogue engine and game cores are DOM-free and covered by node tests:
 
 ```sh
-node tests/smoke.js
+node tests/smoke.js   # Joshua dialogue engine
+node tests/games.js   # tic-tac-toe minimax, GTW map and targeting
 ```

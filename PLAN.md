@@ -99,12 +99,12 @@ Alternative considered: a Python CLI with `curses`. Rejected as primary because 
 
 ## 4. Milestones
 
-### M1: Terminal foundation (the toy that proves the feel)
+### M1: Terminal foundation (the toy that proves the feel) [SHIPPED]
 - `index.html`, CRT styling, typewriter output, input handling.
 - Boot sequence: `LOGON:` prompt, the iconic `SHALL WE PLAY A GAME?` exchange hardcoded.
 - **Done when**: typing `HELLO` gets a Joshua response and it *feels* like the movie.
 
-### M2: Engine + Act 3 core loop
+### M2: Engine + Act 3 core loop [SHIPPED]
 - Scene machine, parser, save/load.
 - Game list, playable tic-tac-toe vs. Joshua, GTW side/target selection, NORAD big-board ASCII map reacting to launches.
 - **Done when**: a player can log in, start GTW as the USSR, and watch missile tracks render.

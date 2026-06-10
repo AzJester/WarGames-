@@ -64,6 +64,18 @@ class Terminal {
     }
   }
 
+  // A block whose content is replaced per animation frame.
+  frame(cls) {
+    const line = this._line(cls);
+    const self = this;
+    return {
+      set(text) {
+        line.textContent = text;
+        self._scroll();
+      },
+    };
+  }
+
   read(prompt = "> ") {
     return new Promise((resolve) => {
       this.skip = false;

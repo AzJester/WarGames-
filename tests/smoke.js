@@ -2,18 +2,23 @@
  * DOM-free smoke test for the Joshua dialogue engine.
  * Run: node tests/smoke.js
  *
- * js/wopr.js is a classic browser script, so it is loaded by writing a
- * temporary CommonJS wrapper around its source.
+ * The js/ files are classic browser scripts, so they are loaded by
+ * writing a temporary CommonJS wrapper around their concatenated source.
  */
 const assert = require("assert");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const src = fs.readFileSync(path.join(__dirname, "..", "js", "wopr.js"), "utf8");
+const src = ["js/parser.js", "js/wopr.js"]
+  .map((f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8"))
+  .join("\n");
 const tmp = path.join(os.tmpdir(), `wopr-under-test-${process.pid}.js`);
-fs.writeFileSync(tmp, src + "\nmodule.exports = { Joshua, matchGame, norm, GTW, GAME_LIST };\n");
-const { Joshua, matchGame, norm, GTW, GAME_LIST } = require(tmp);
+fs.writeFileSync(
+  tmp,
+  src + "\nmodule.exports = { Joshua, matchGame, norm, isYes, isNo, GTW, GAME_LIST };\n"
+);
+const { Joshua, matchGame, norm, isYes, isNo, GTW, GAME_LIST } = require(tmp);
 fs.unlinkSync(tmp);
 
 let passed = 0;
@@ -25,10 +30,21 @@ function check(name, fn) {
 
 const texts = (ops) => ops.filter((o) => o.kind === "say").map((o) => o.text);
 const kinds = (ops) => ops.map((o) => o.kind);
+const gameOf = (ops) => {
+  const g = ops.find((o) => o.kind === "game");
+  return g ? g.game : null;
+};
 
 check("norm strips punctuation and case", () => {
   assert.strictEqual(norm("Let's PLAY!"), "lets play");
   assert.strictEqual(norm("  HELP   GAMES  "), "help games");
+});
+
+check("isYes and isNo handle the tricky phrasings", () => {
+  assert.ok(isYes(norm("Sure, why not?")));
+  assert.ok(!isNo(norm("why not")));
+  assert.ok(isNo(norm("no thanks")));
+  assert.ok(isNo(norm("later")));
 });
 
 check("matchGame finds games by alias and full name", () => {
@@ -40,8 +56,9 @@ check("matchGame finds games by alias and full name", () => {
   assert.strictEqual(matchGame(norm("hello there")), null);
 });
 
-check("game list matches the film, GTW kept separate", () => {
-  assert.strictEqual(GAME_LIST.length, 14);
+check("game list has the film games plus tic-tac-toe, GTW kept separate", () => {
+  assert.strictEqual(GAME_LIST.length, 15);
+  assert.ok(GAME_LIST.includes("TIC-TAC-TOE"));
   assert.ok(!GAME_LIST.includes(GTW));
 });
 
@@ -60,24 +77,62 @@ check("film script: the canonical exchange beats", () => {
   const t4 = texts(j.respond("How about Global Thermonuclear War?"));
   assert.deepStrictEqual(t4, ["WOULDN'T YOU PREFER A GOOD GAME OF CHESS?"]);
 
-  const t5 = texts(j.respond("Later. Let's play Global Thermonuclear War."));
-  assert.strictEqual(t5[0], "FINE.");
-  assert.ok(t5.some((s) => s.includes("OFF-LINE PENDING SYSTEM REVISION 2")));
+  const ops = j.respond("Later. Let's play Global Thermonuclear War.");
+  assert.strictEqual(texts(ops)[0], "FINE.");
+  assert.strictEqual(gameOf(ops), GTW);
 });
 
 check("asking for GTW immediately skips the pleasantries", () => {
   const j = new Joshua();
   const t = texts(j.respond("global thermonuclear war"));
   assert.deepStrictEqual(t, ["WOULDN'T YOU PREFER A GOOD GAME OF CHESS?"]);
-  const t2 = texts(j.respond("no"));
-  assert.strictEqual(t2[0], "FINE.");
+  const ops = j.respond("no");
+  assert.strictEqual(texts(ops)[0], "FINE.");
+  assert.strictEqual(gameOf(ops), GTW);
 });
 
-check("accepting the chess counter-offer loads the chess stub", () => {
+check("accepting the chess counter-offer hits the chess stub", () => {
   const j = new Joshua();
   j.respond("global thermonuclear war");
   const t = texts(j.respond("yes"));
-  assert.ok(t[0].startsWith("LOADING CHESS"));
+  assert.ok(t[0].includes("CHESS MODULE IS NOT INSTALLED"));
+});
+
+check("tic-tac-toe launches directly", () => {
+  const j = new Joshua();
+  const ops = j.respond("tic tac toe");
+  assert.strictEqual(texts(ops)[0], "FINE.");
+  assert.strictEqual(gameOf(ops), "TIC-TAC-TOE");
+});
+
+check("unplayable games point at the installed simulations", () => {
+  const j = new Joshua();
+  j.beat = "free";
+  const t = texts(j.respond("poker"));
+  assert.strictEqual(t[0], "POKER MODULE IS NOT INSTALLED.");
+  assert.ok(t[1].includes("TIC-TAC-TOE"));
+});
+
+check("returning player skips the chess counter-offer", () => {
+  const j = new Joshua({ gtwRuns: 1, lastSide: "SOVIET UNION", defcon: 3 });
+  assert.ok(j.returning);
+  const ops = j.respond("global thermonuclear war");
+  assert.strictEqual(texts(ops)[0], "FINE.");
+  assert.strictEqual(gameOf(ops), GTW);
+});
+
+check("returning player can accept 'shall we play again'", () => {
+  const j = new Joshua({ gtwRuns: 1, lastSide: "SOVIET UNION", defcon: 3 });
+  const ops = j.respond("yes");
+  assert.strictEqual(gameOf(ops), GTW);
+});
+
+check("defcon reflects saved state", () => {
+  const fresh = new Joshua();
+  fresh.beat = "free";
+  assert.ok(texts(fresh.respond("defcon"))[0].includes("DEFCON STATUS: 5."));
+  const after = new Joshua({ gtwRuns: 1, defcon: 3 });
+  assert.ok(texts(after.respond("defcon"))[0].includes("DEFCON STATUS: 3."));
 });
 
 check("yes to 'shall we play a game' gets the chess counter-offer", () => {
@@ -119,9 +174,6 @@ check("easter eggs", () => {
     "WHAT'S THE DIFFERENCE?",
   ]);
   assert.deepStrictEqual(texts(j.respond("what is the primary goal?")), ["TO WIN THE GAME."]);
-  assert.deepStrictEqual(texts(j.respond("what is the defcon level")), [
-    "DEFCON STATUS: 5. ALL QUIET, PROFESSOR.",
-  ]);
 });
 
 check("fallbacks rotate and the third re-offers a game", () => {
