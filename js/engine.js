@@ -15,6 +15,8 @@ function defaultState() {
     tttGames: 0,
     tttDraws: 0,
     defcon: 5,
+    metWopr: false,
+    knowsJoshua: false,
   };
 }
 

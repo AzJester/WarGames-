@@ -109,7 +109,7 @@ Alternative considered: a Python CLI with `curses`. Rejected as primary because 
 - Game list, playable tic-tac-toe vs. Joshua, GTW side/target selection, NORAD big-board ASCII map reacting to launches.
 - **Done when**: a player can log in, start GTW as the USSR, and watch missile tracks render.
 
-### M3: Acts 1-2 (the setup)
+### M3: Acts 1-2 (the setup) [SHIPPED]
 - War-dial minigame with a generated number pool and flavor responses.
 - Falken research puzzle (in-game archive articles, obituary, the `joshua` discovery), tuned easy: two or three steps, clues clearly surfaced, no red herrings that block progress.
 - `SKIP` command offered at boot, jumping straight to the WOPR connection (Acts 1-2 are optional even on a first play; the logon hint ladder covers skippers).

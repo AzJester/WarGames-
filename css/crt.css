@@ -56,6 +56,13 @@ html, body {
   white-space: pre;
 }
 
+.line.title {
+  white-space: pre;
+  font-size: clamp(7px, 1.7vw, 16px);
+  line-height: 1.1;
+  text-shadow: 0 0 8px var(--glow);
+}
+
 .line.map {
   white-space: pre;
   font-size: clamp(7px, 1.45vw, 14px);
