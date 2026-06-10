@@ -29,12 +29,62 @@ async function showGameList(term) {
 }
 
 async function connectTone(term) {
+  if (typeof Sound !== "undefined") Sound.modem();
   await term.type("RINGING . . .", { cps: 8, cls: "dim" });
   await term.pause(500);
   await term.type("CARRIER 1200", { cps: 40, cls: "dim" });
   await term.type("CONNECT", { cps: 40, cls: "dim" });
   term.print("");
   await term.pause(600);
+}
+
+// SOUND and FAST work at any prompt. Returns true if it handled the input.
+async function handleGlobalCommand(term, t) {
+  if (t === "sound off" || t === "mute") {
+    if (typeof Sound !== "undefined") Sound.setEnabled(false);
+    await term.type("SOUND OFF.");
+    return true;
+  }
+  if (t === "sound on" || t === "unmute") {
+    if (typeof Sound !== "undefined") Sound.setEnabled(true);
+    await term.type("SOUND ON.");
+    return true;
+  }
+  if (t === "sound") {
+    const on = typeof Sound !== "undefined" && Sound.isEnabled();
+    await term.type("SOUND IS " + (on ? "ON" : "OFF") + ". TYPE SOUND OFF OR SOUND ON.");
+    return true;
+  }
+  if (t === "fast") {
+    term.fast = true;
+    saveFast(true);
+    await term.type("FAST TEXT ON.");
+    return true;
+  }
+  if (t === "slow") {
+    term.fast = false;
+    saveFast(false);
+    await term.type("FAST TEXT OFF.");
+    return true;
+  }
+  return false;
+}
+
+function saveFast(on) {
+  try {
+    if (typeof localStorage !== "undefined") localStorage.setItem("wargames-fast", on ? "1" : "0");
+  } catch (e) {
+    /* storage blocked */
+  }
+}
+
+function loadFast() {
+  try {
+    if (typeof localStorage !== "undefined") return localStorage.getItem("wargames-fast") === "1";
+  } catch (e) {
+    /* storage blocked */
+  }
+  return false;
 }
 
 const scenes = {
@@ -70,10 +120,12 @@ const scenes = {
     );
     term.print("");
     term.print("Type SCAN to start war dialing. Type SKIP to jump straight to the system you eventually find.", "aside");
+    term.print("Sound is on (type SOUND OFF to mute). Type FAST to speed up text.", "aside");
     term.print("");
 
     while (true) {
       const t = norm(await term.read("> "));
+      if (await handleGlobalCommand(term, t)) continue;
       if (t === "skip") {
         ctx.skipFraming = true;
         return "dial";
@@ -187,6 +239,7 @@ const scenes = {
       const value = await term.read("LOGON: ");
       const t = norm(value);
       if (!t) continue;
+      if (await handleGlobalCommand(term, t)) continue;
       if (t === "help games") {
         await term.type(
           "'GAMES' REFERS TO MODELS, SIMULATIONS AND GAMES WHICH HAVE TACTICAL AND STRATEGIC APPLICATIONS."
@@ -253,6 +306,7 @@ const scenes = {
     }
     while (true) {
       const value = await term.read("> ");
+      if (await handleGlobalCommand(term, norm(value))) continue;
       const ops = joshua.respond(value);
       for (const op of ops) {
         if (op.kind === "say") {
@@ -372,6 +426,7 @@ const scenes = {
     term.setStatus({ defcon: 2, right: "NORAD WAR ROOM" });
     state.defcon = 2;
     saveState(state);
+    if (typeof Sound !== "undefined") Sound.klaxon();
     await term.type("DEFCON 2.", { cps: 22 });
     term.print('BERINGER: "We didn\'t move it. Who moved it?"');
     term.print("It moved itself.", "aside");
@@ -429,6 +484,7 @@ const scenes = {
     term.clear();
     state.defcon = 1;
     saveState(state);
+    if (typeof Sound !== "undefined") Sound.klaxon();
     await term.type("CHEYENNE MOUNTAIN — DEFCON 1", { cps: 30 });
     term.print("");
     term.print(
@@ -690,6 +746,7 @@ async function secretEnding(term, state) {
     flash: document.getElementById("flash"),
     crt: document.getElementById("crt"),
   });
+  term.fast = loadFast();
   const state = loadState();
   console.log(
     "%cGREETINGS.",

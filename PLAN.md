@@ -120,7 +120,7 @@ Alternative considered: a Python CLI with `curses`. Rejected as primary because 
 - Tic-tac-toe self-play spectacle, scenario flood, ending sequence with all three endings.
 - **Done when**: the game is completable start to finish.
 
-### M5: Polish and ship
+### M5: Polish and ship [SHIPPED]
 - Sound on by default (modem handshake on connect, klaxon at DEFCON 2) with a `SOUND OFF` opt-out persisted in localStorage.
 - Skip/fast-forward for replays, accessibility pass (reduced-motion mode disables flicker, full keyboard play, screen-reader-friendly output region).
 - GitHub Pages deployment, README rewrite with screenshots and a play link.

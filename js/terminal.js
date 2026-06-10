@@ -20,11 +20,13 @@ class Terminal {
     this.histDraft = "";
     this.reading = false;
     this.skip = false;
+    this.fast = false;
     this.maxLines = 500;
     this._readState = null;
 
     document.addEventListener("keydown", (e) => this._onKey(e));
     document.addEventListener("pointerdown", () => {
+      if (typeof Sound !== "undefined") Sound.unlock();
       if (!this.reading) this.skip = true;
       this._focus();
     });
@@ -43,10 +45,10 @@ class Terminal {
       for (const ch of row) {
         span.textContent += ch;
         this._scroll();
-        if (!this.skip) await sleep(delay);
+        if (!this.skip && !this.fast) await sleep(delay);
       }
       this._announce(row);
-      if (!this.skip) await sleep(60);
+      if (!this.skip && !this.fast) await sleep(60);
     }
   }
 
@@ -60,6 +62,7 @@ class Terminal {
   }
 
   async pause(ms) {
+    if (this.fast) ms = Math.min(ms, 120);
     let waited = 0;
     while (waited < ms && !this.skip) {
       await sleep(40);
@@ -132,6 +135,10 @@ class Terminal {
 
   _onKey(e) {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (typeof Sound !== "undefined") {
+      Sound.unlock();
+      Sound.click();
+    }
     if (!this.reading) {
       this.skip = true;
       return;

@@ -9,6 +9,8 @@
 <link rel="stylesheet" href="css/crt.css">
 </head>
 <body>
+<h1 class="sr-only">WarGames: an interactive terminal game of the 1983 film</h1>
+<p class="sr-only">A text game played by typing. Type a command and press Enter; the system's replies are read aloud as they appear. Begin by typing SCAN, or type SKIP to jump ahead. Type SOUND OFF to mute and FAST to speed up text.</p>
 <div id="crt">
   <div id="status" role="status"></div>
   <main id="screen" aria-hidden="true"></main>
@@ -16,9 +18,10 @@
   <div id="vignette"></div>
   <div id="flash"></div>
 </div>
-<input id="kbd" type="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Terminal input">
-<div id="sr-live" class="sr-only" aria-live="polite"></div>
+<input id="kbd" type="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Terminal command input">
+<div id="sr-live" class="sr-only" role="log" aria-live="polite"></div>
 <noscript><p style="color:#3aff6e;background:#000;font-family:monospace;padding:2rem;">THIS TERMINAL REQUIRES JAVASCRIPT.</p></noscript>
+<script defer src="js/sound.js"></script>
 <script defer src="js/terminal.js"></script>
 <script defer src="js/parser.js"></script>
 <script defer src="js/intro.js"></script>

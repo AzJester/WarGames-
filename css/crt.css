@@ -198,4 +198,6 @@ html, body {
   #scan::after { animation: none; display: none; }
   .cursor { animation: none; }
   #status.defcon-1 { animation: none; }
+  /* Gentler, slower bad-ending flash to avoid a harsh strobe. */
+  #flash.on { opacity: 0.8; transition: opacity 1s ease-in; }
 }
