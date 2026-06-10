@@ -256,13 +256,20 @@ async function runVolley(term, headerLines, missiles) {
 // The player declined to launch. Joshua probes; if they articulate why,
 // they reach the secret ending without the whole crisis ever igniting.
 async function refuseLaunch(term, state) {
+  const speak = (t) => {
+    if (typeof Sound !== "undefined") Sound.speak(t);
+  };
   state.refusedLaunch = true;
+  speak("A CURIOUS CHOICE, PROFESSOR.");
   await term.type("A CURIOUS CHOICE, PROFESSOR.");
+  speak("WHY WILL YOU NOT PLAY?");
   await term.type("WHY WILL YOU NOT PLAY?");
   const why = await term.read("> ");
+  if (typeof Sound !== "undefined") Sound.shutUp();
   if (CrisisCore.isNoWinSentiment(why)) {
     return { completed: false, secret: true };
   }
+  speak("INTERESTING. WE WILL RETURN TO THIS.");
   await term.type("INTERESTING. WE WILL RETURN TO THIS.");
   return { completed: false };
 }

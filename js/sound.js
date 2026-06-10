@@ -10,15 +10,35 @@
 const Sound = (() => {
   const AC =
     (typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext)) || null;
+  const SS = (typeof window !== "undefined" && window.speechSynthesis) || null;
+  const SU = (typeof window !== "undefined" && window.SpeechSynthesisUtterance) || null;
   let ctx = null;
   let enabled = true;
+  let voiceOn = true;
+  let chosenVoice = null;
 
   try {
-    if (typeof localStorage !== "undefined" && localStorage.getItem("wargames-sound") === "off") {
-      enabled = false;
+    if (typeof localStorage !== "undefined") {
+      if (localStorage.getItem("wargames-sound") === "off") enabled = false;
+      if (localStorage.getItem("wargames-voice") === "off") voiceOn = false;
     }
   } catch (e) {
     /* storage blocked */
+  }
+
+  // Pick a low, machine-like English voice when the list is ready.
+  function pickVoice() {
+    if (!SS) return;
+    const vs = SS.getVoices ? SS.getVoices() : [];
+    if (!vs || !vs.length) return;
+    chosenVoice =
+      vs.find((v) => /en[-_]?US/i.test(v.lang) && /(david|mark|daniel|zarvox|google us)/i.test(v.name)) ||
+      vs.find((v) => /^en/i.test(v.lang)) ||
+      vs[0];
+  }
+  if (SS) {
+    pickVoice();
+    if (typeof SS.addEventListener === "function") SS.addEventListener("voiceschanged", pickVoice);
   }
 
   function unlock() {
@@ -130,5 +150,60 @@ const Sound = (() => {
     tone(880, ctx.currentTime, 0.08, { type: "square", gain: 0.04 });
   }
 
-  return { unlock, setEnabled, isEnabled, modem, klaxon, click, beep };
+  // WOPR's synthesized voice. Lines are queued; new player input cancels
+  // any backlog via shutUp(). Speaker prefixes and glyphs are stripped.
+  function speak(text) {
+    if (!SS || !SU || !enabled || !voiceOn) return;
+    const clean = String(text)
+      .replace(/^\s*(W\.?O\.?P\.?R\.?|JOSHUA)\s*:?\s*/i, "")
+      .replace(/[█▲●▓▒░·]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!clean) return;
+    if (!chosenVoice) pickVoice();
+    const u = new SU(clean);
+    u.rate = 0.86;
+    u.pitch = 0.4;
+    u.volume = 0.9;
+    if (chosenVoice) u.voice = chosenVoice;
+    try {
+      SS.speak(u);
+    } catch (e) {
+      /* speech unavailable */
+    }
+  }
+
+  function shutUp() {
+    if (SS && typeof SS.cancel === "function") SS.cancel();
+  }
+
+  function setVoice(on) {
+    voiceOn = !!on;
+    try {
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem("wargames-voice", voiceOn ? "on" : "off");
+      }
+    } catch (e) {
+      /* storage blocked */
+    }
+    if (!voiceOn) shutUp();
+  }
+
+  function isVoiceOn() {
+    return voiceOn;
+  }
+
+  return {
+    unlock,
+    setEnabled,
+    isEnabled,
+    setVoice,
+    isVoiceOn,
+    modem,
+    klaxon,
+    click,
+    beep,
+    speak,
+    shutUp,
+  };
 })();

@@ -39,7 +39,7 @@ check("defaults to enabled with no stored preference", () => {
   assert.strictEqual(Sound.isEnabled(), true);
 });
 
-check("every method is a safe no-op without WebAudio", () => {
+check("every method is a safe no-op without WebAudio or speech", () => {
   const Sound = load();
   assert.doesNotThrow(() => {
     Sound.unlock();
@@ -47,7 +47,27 @@ check("every method is a safe no-op without WebAudio", () => {
     Sound.klaxon();
     Sound.click();
     Sound.beep();
+    Sound.speak("GREETINGS PROFESSOR FALKEN.");
+    Sound.shutUp();
   });
+});
+
+check("voice defaults on and persists", () => {
+  for (const k of Object.keys(store)) delete store[k];
+  const Sound = load();
+  assert.strictEqual(Sound.isVoiceOn(), true);
+  Sound.setVoice(false);
+  assert.strictEqual(Sound.isVoiceOn(), false);
+  assert.strictEqual(store["wargames-voice"], "off");
+  Sound.setVoice(true);
+  assert.strictEqual(store["wargames-voice"], "on");
+});
+
+check("a stored 'voice off' preference is honored on load", () => {
+  for (const k of Object.keys(store)) delete store[k];
+  store["wargames-voice"] = "off";
+  const Sound = load();
+  assert.strictEqual(Sound.isVoiceOn(), false);
 });
 
 check("setEnabled toggles and persists", () => {
