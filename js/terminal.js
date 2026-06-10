@@ -102,6 +102,20 @@ class Terminal {
     if (this.flashEl) this.flashEl.classList.remove("on");
   }
 
+  // A canvas in the scrollback flow, or null where canvas is unsupported
+  // (test stubs); callers fall back to the ASCII board.
+  canvasBlock() {
+    const line = this._line("canvas-line");
+    const canvas = document.createElement("canvas");
+    if (typeof canvas.getContext !== "function") {
+      line.remove();
+      return null;
+    }
+    line.appendChild(canvas);
+    this._scroll();
+    return canvas;
+  }
+
   // A block whose content is replaced per animation frame.
   frame(cls) {
     const line = this._line(cls);

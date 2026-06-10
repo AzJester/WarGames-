@@ -20,3 +20,4 @@ jobs:
           node tests/intro.js
           node tests/crisis.js
           node tests/sound.js
+          node tests/modern.js

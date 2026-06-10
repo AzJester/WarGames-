@@ -79,6 +79,21 @@ async function handleGlobalCommand(term, t) {
     await term.type("VOICE IS " + (on ? "ON" : "OFF") + ". TYPE VOICE OFF OR VOICE ON.");
     return true;
   }
+  if (t === "mode modern" || t === "modern") {
+    if (typeof Modern !== "undefined") Modern.setMode("modern");
+    await term.type("DISPLAY MODE: MODERN.");
+    return true;
+  }
+  if (t === "mode classic" || t === "classic") {
+    if (typeof Modern !== "undefined") Modern.setMode("classic");
+    await term.type("DISPLAY MODE: CLASSIC.");
+    return true;
+  }
+  if (t === "mode") {
+    const m = typeof Modern !== "undefined" && Modern.isModern() ? "MODERN" : "CLASSIC";
+    await term.type("DISPLAY MODE IS " + m + ". TYPE MODE MODERN OR MODE CLASSIC.");
+    return true;
+  }
   if (t === "fast") {
     term.fast = true;
     saveFast(true);
@@ -650,17 +665,7 @@ async function blizzard(term) {
   const sites = [...GTWCore.LAUNCH_US, ...GTWCore.LAUNCH_USSR];
   // Every plan at once: a dense fan of tracks crossing the whole board.
   const missiles = GTWCore.fanMissiles(sites, all, 40);
-  const header = ["GLOBAL THERMONUCLEAR WAR", "SIMULATION RUNNING — ALL SCENARIOS", ""];
-  const frame = term.frame("map");
-  const max = Math.max(...missiles.map((m) => m.start + m.path.length - 1));
-  for (let tick = 0; tick <= max; tick++) {
-    frame.set(GTWCore.buildFrame(header, missiles, tick));
-    if (term.skip) {
-      frame.set(GTWCore.buildFrame(header, missiles, max));
-      return;
-    }
-    await term.pause(90);
-  }
+  await runVolley(term, ["SIMULATION RUNNING — ALL SCENARIOS"], missiles);
 }
 
 // WOPR plays itself at tic-tac-toe, faster and faster, always a draw.

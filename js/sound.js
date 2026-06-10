@@ -168,6 +168,63 @@ const Sound = (() => {
     tone(1320, ctx.currentTime, 0.025, { type: "square", gain: 0.03 });
   }
 
+  // Modern-mode battle sounds, throttled so saturation volleys do not stack
+  // into noise.
+  let lastWhoosh = 0;
+  let lastBoom = 0;
+
+  function whoosh() {
+    if (!ctx || !enabled) return;
+    const t = ctx.currentTime;
+    if (t - lastWhoosh < 0.09) return;
+    lastWhoosh = t;
+    tone(900, t, 0.5, { type: "sawtooth", gain: 0.02, glideTo: 180 });
+    hiss(t, 0.35, 0.02);
+  }
+
+  function boom() {
+    if (!ctx || !enabled) return;
+    const t = ctx.currentTime;
+    if (t - lastBoom < 0.12) return;
+    lastBoom = t;
+    tone(70, t, 0.7, { type: "sine", gain: 0.1, glideTo: 32 });
+    hiss(t, 0.5, 0.05);
+  }
+
+  // Low war-room ambience during volleys.
+  let ambient = null;
+
+  function startAmbient() {
+    unlock();
+    if (!ctx || !enabled || ambient) return;
+    const g = ctx.createGain();
+    g.gain.value = 0.014;
+    const o1 = ctx.createOscillator();
+    o1.type = "sine";
+    o1.frequency.value = 50;
+    const o2 = ctx.createOscillator();
+    o2.type = "sine";
+    o2.frequency.value = 60.7;
+    o1.connect(g);
+    o2.connect(g);
+    g.connect(ctx.destination);
+    o1.start();
+    o2.start();
+    ambient = { o1, o2, g };
+  }
+
+  function stopAmbient() {
+    if (!ambient) return;
+    try {
+      ambient.g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
+      ambient.o1.stop(ctx.currentTime + 0.5);
+      ambient.o2.stop(ctx.currentTime + 0.5);
+    } catch (e) {
+      /* already stopped */
+    }
+    ambient = null;
+  }
+
   // WOPR's synthesized voice. Lines are queued; new player input cancels
   // any backlog via shutUp(). Speaker prefixes and glyphs are stripped.
   function speak(text) {
@@ -223,6 +280,10 @@ const Sound = (() => {
     beep,
     powerOn,
     tick,
+    whoosh,
+    boom,
+    startAmbient,
+    stopAmbient,
     speak,
     shutUp,
   };
