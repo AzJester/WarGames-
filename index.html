@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#000000">
+<title>SHALL WE PLAY A GAME?</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23000'/%3E%3Crect x='3' y='3' width='10' height='10' fill='%233aff6e'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/crt.css">
+</head>
+<body>
+<h1 class="sr-only">WarGames: an interactive terminal game of the 1983 film</h1>
+<p class="sr-only">A text game played by typing. Type a command and press Enter; the system's replies are read aloud as they appear. Begin by typing SCAN, or type SKIP to jump ahead. Type SOUND OFF to mute and FAST to speed up text.</p>
+<div id="crt">
+  <div id="status" role="status"></div>
+  <main id="screen" aria-hidden="true"></main>
+  <div id="scan"></div>
+  <div id="vignette"></div>
+  <div id="flash"></div>
+</div>
+<input id="kbd" type="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Terminal command input">
+<div id="sr-live" class="sr-only" role="log" aria-live="polite"></div>
+<noscript><p style="color:#3aff6e;background:#000;font-family:monospace;padding:2rem;">THIS TERMINAL REQUIRES JAVASCRIPT.</p></noscript>
+<script defer src="js/sound.js"></script>
+<script defer src="js/terminal.js"></script>
+<script defer src="js/parser.js"></script>
+<script defer src="js/intro.js"></script>
+<script defer src="js/crisis.js"></script>
+<script defer src="js/wopr.js"></script>
+<script defer src="js/games/tictactoe.js"></script>
+<script defer src="js/games/gtw.js"></script>
+<script defer src="js/engine.js"></script>
+<script defer src="js/main.js"></script>
+</body>
+</html>
