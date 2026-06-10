@@ -1,4 +1,4 @@
-# WarGames: The Interactive Game — Build Plan
+# WarGames: The Interactive Game (Build Plan)
 
 An interactive recreation of the 1983 film *WarGames*. The player takes the role of David Lightman, stumbles into WOPR, accidentally starts Global Thermonuclear War, and must teach the machine that the only winning move is not to play.
 
@@ -91,7 +91,7 @@ Alternative considered: a Python CLI with `curses`. Rejected as primary because 
 - Minimax engine that can play both sides.
 - Climax sequence: render games at accelerating speed, board after board, with a running tally `GAMES PLAYED: n / WINNER: NONE`, then dissolve into launch-scenario names from the film (FIRST STRIKE, SUDDEN COUNTERATTACK, SEATO DECAPITATING...) each stamped WINNER: NONE.
 
-**DEFCON tracker (Act 4–5)**
+**DEFCON tracker (Act 4-5)**
 - Persistent status line at the top of the screen once the crisis starts.
 - Escalation driven by elapsed time and player missteps; de-escalation only via the Act 5 solution.
 
@@ -109,12 +109,12 @@ Alternative considered: a Python CLI with `curses`. Rejected as primary because 
 - Game list, playable tic-tac-toe vs. Joshua, GTW side/target selection, NORAD big-board ASCII map reacting to launches.
 - **Done when**: a player can log in, start GTW as the USSR, and watch missile tracks render.
 
-### M3: Acts 1–2 (the setup)
+### M3: Acts 1-2 (the setup)
 - War-dial minigame with a generated number pool and flavor responses.
 - Falken research puzzle (in-game archive articles, obituary, the `joshua` discovery).
 - **Done when**: a new player can reach WOPR with no out-of-game knowledge.
 
-### M4: Acts 4–5 (the crisis and climax)
+### M4: Acts 4-5 (the crisis and climax)
 - DEFCON tracker, FBI trace events, McKittrick/Beringer dialogue, Falken island scene (rendered as narrative interludes between terminal sessions).
 - Tic-tac-toe self-play spectacle, scenario flood, ending sequence with all three endings.
 - **Done when**: the game is completable start to finish.
@@ -143,6 +143,6 @@ Alternative considered: a Python CLI with `curses`. Rejected as primary because 
 ---
 
 ## 7. Open Questions
-1. Should Acts 1–2 be skippable on first play for impatient players, or only after one completion?
+1. Should Acts 1-2 be skippable on first play for impatient players, or only after one completion?
 2. Sound on by default, or opt-in? (Modem handshake is iconic but loud.)
 3. Difficulty of the Falken research puzzle: guided (clues highlight) vs. genuine digging.
