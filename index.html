@@ -10,9 +10,11 @@
 </head>
 <body>
 <div id="crt">
+  <div id="status" role="status"></div>
   <main id="screen" aria-hidden="true"></main>
   <div id="scan"></div>
   <div id="vignette"></div>
+  <div id="flash"></div>
 </div>
 <input id="kbd" type="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Terminal input">
 <div id="sr-live" class="sr-only" aria-live="polite"></div>
@@ -20,6 +22,7 @@
 <script defer src="js/terminal.js"></script>
 <script defer src="js/parser.js"></script>
 <script defer src="js/intro.js"></script>
+<script defer src="js/crisis.js"></script>
 <script defer src="js/wopr.js"></script>
 <script defer src="js/games/tictactoe.js"></script>
 <script defer src="js/games/gtw.js"></script>

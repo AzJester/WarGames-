@@ -26,6 +26,10 @@ html, body {
   inset: 0;
   overflow-y: auto;
   padding: 4vmin 5vmin 14vmin;
+}
+
+#crt.has-status #screen {
+  padding-top: calc(4vmin + 2.2em);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: clamp(14px, 2.1vmin, 20px);
   line-height: 1.5;
@@ -73,6 +77,44 @@ html, body {
   display: inline-block;
   margin-left: 1px;
   animation: blink 1.06s steps(1) infinite;
+}
+
+#status {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  padding: 0.5em 5vmin;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: clamp(13px, 2vmin, 18px);
+  letter-spacing: 0.12em;
+  border-bottom: 1px solid currentColor;
+  background: rgba(0, 0, 0, 0.85);
+  text-shadow: 0 0 6px currentColor;
+}
+#status.defcon-5 { color: #3aff6e; }
+#status.defcon-4 { color: #b6ff3a; }
+#status.defcon-3 { color: var(--amber); }
+#status.defcon-2 { color: #ff7b00; }
+#status.defcon-1 {
+  color: #ff2a2a;
+  animation: alarm 0.9s steps(2) infinite;
+}
+
+#flash {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.08s linear;
+}
+#flash.on {
+  opacity: 1;
+  transition: opacity 2.4s ease-in;
 }
 
 #scan {
@@ -146,9 +188,14 @@ html, body {
   50% { opacity: 0.982; }
   100% { opacity: 1; }
 }
+@keyframes alarm {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   #crt { animation: none; }
   #scan::after { animation: none; display: none; }
   .cursor { animation: none; }
+  #status.defcon-1 { animation: none; }
 }

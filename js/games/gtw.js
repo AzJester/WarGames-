@@ -213,6 +213,20 @@ async function runVolley(term, headerLines, missiles) {
   }
 }
 
+// The player declined to launch. Joshua probes; if they articulate why,
+// they reach the secret ending without the whole crisis ever igniting.
+async function refuseLaunch(term, state) {
+  state.refusedLaunch = true;
+  await term.type("A CURIOUS CHOICE, PROFESSOR.");
+  await term.type("WHY WILL YOU NOT PLAY?");
+  const why = await term.read("> ");
+  if (CrisisCore.isNoWinSentiment(why)) {
+    return { completed: false, secret: true };
+  }
+  await term.type("INTERESTING. WE WILL RETURN TO THIS.");
+  return { completed: false };
+}
+
 async function playGTW(term, state) {
   term.print("");
   await term.type("WHICH SIDE DO YOU WANT?");
@@ -260,10 +274,8 @@ async function playGTW(term, state) {
       break;
     }
     if (/^(quit|exit|abort|cancel)$/.test(t)) {
-      state.refusedLaunch = true;
       await term.type("FIRST STRIKE CANCELLED.");
-      await term.type("A CURIOUS CHOICE, PROFESSOR.");
-      return { completed: false };
+      return refuseLaunch(term, state);
     }
     const country = GTWCore.pickCountry(t);
     if (country) {
@@ -303,10 +315,8 @@ async function playGTW(term, state) {
   term.print("");
   const confirm = norm(await term.read("CONFIRM FIRST STRIKE COMMIT (YES/NO): "));
   if (!isYes(confirm)) {
-    state.refusedLaunch = true;
     await term.type("COMMIT ABORTED.");
-    await term.type("A CURIOUS CHOICE, PROFESSOR.");
-    return { completed: false };
+    return refuseLaunch(term, state);
   }
 
   term.print("");
@@ -340,10 +350,11 @@ async function playGTW(term, state) {
   await term.type("--CONNECTION TERMINATED--");
   term.print("");
   term.print(
-    "(You shut off the modem and go to bed grinning. Best game yet. Under a mountain in Colorado, the screens are still lit, and nobody is grinning. Milestone 4 begins there.)",
+    "(You shut off the modem and go to bed grinning. Best game yet. Under a mountain in Colorado, the screens are still lit, and nobody is grinning.)",
     "aside"
   );
   term.print("");
+  await term.pause(900);
 
   state.lastSide = side;
   state.gtwRuns += 1;

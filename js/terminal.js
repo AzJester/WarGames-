@@ -5,10 +5,13 @@
  * the skip flag clears when the next read() begins.
  */
 class Terminal {
-  constructor({ screen, input, live }) {
+  constructor({ screen, input, live, status, flash, crt }) {
     this.screen = screen;
     this.input = input;
     this.live = live;
+    this.statusEl = status || null;
+    this.flashEl = flash || null;
+    this.crt = crt || null;
     this.cursor = document.createElement("span");
     this.cursor.className = "cursor";
     this.cursor.textContent = "█";
@@ -62,6 +65,38 @@ class Terminal {
       await sleep(40);
       waited += 40;
     }
+  }
+
+  // Persistent DEFCON status bar at the top of the screen. No-op when the
+  // status element is absent (e.g. the node test stub).
+  setStatus({ defcon, right = "" }) {
+    if (!this.statusEl) return;
+    this.statusEl.className = "defcon-" + defcon;
+    const bars = "█".repeat(6 - defcon) + "·".repeat(defcon - 1);
+    this.statusEl.textContent =
+      `DEFCON ${defcon} [${bars}]` + (right ? "    " + right : "");
+    this.statusEl.style.display = "block";
+    if (this.crt) this.crt.classList.add("has-status");
+  }
+
+  clearStatus() {
+    if (!this.statusEl) return;
+    this.statusEl.style.display = "none";
+    if (this.crt) this.crt.classList.remove("has-status");
+  }
+
+  clear() {
+    while (this.screen.firstElementChild) this.screen.firstElementChild.remove();
+  }
+
+  async whiteout() {
+    if (!this.flashEl) return;
+    this.flashEl.classList.add("on");
+    await sleep(60);
+  }
+
+  clearFlash() {
+    if (this.flashEl) this.flashEl.classList.remove("on");
   }
 
   // A block whose content is replaced per animation frame.

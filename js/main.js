@@ -275,7 +275,13 @@ const scenes = {
           } else {
             const result = await playGTW(term, state);
             saveState(state);
-            if (result.completed) return "dial";
+            if (result.secret) {
+              await secretEnding(term, state);
+              return "dial";
+            }
+            if (result.completed) {
+              return state.crisisResolved ? "dial" : "crisis";
+            }
             term.print("");
             await term.type("SHALL WE PLAY A DIFFERENT GAME?");
             joshua.pending = "play";
@@ -291,6 +297,197 @@ const scenes = {
           return "dial";
         }
       }
+    }
+  },
+
+  // Act 4: the morning after. WOPR never stopped running David's game.
+  async crisis(ctx) {
+    const { term, state } = ctx;
+    state.defcon = 4;
+    saveState(state);
+    term.print("");
+    await term.pause(500);
+    term.print("You shut off the modem and sleep well. You have no idea.", "aside");
+    term.print("");
+    await term.pause(700);
+    await term.type("CHEYENNE MOUNTAIN COMPLEX — NORAD", { cps: 30 });
+    term.print("");
+    term.print(
+      "Two thousand feet under granite, the big board lights up: a Soviet first strike. The one you ordered last night. Except the machine never stopped running it.",
+      "aside"
+    );
+    await term.pause(800);
+    term.setStatus({ defcon: 3, right: "NORAD WAR ROOM" });
+    state.defcon = 3;
+    await term.type("DEFCON 3. BOMBERS TO POSITIVE CONTROL.", { cps: 26 });
+    await term.pause(700);
+    term.print(
+      "Then, just as fast: no warheads on radar. A false alarm. The room exhales. The machine does not.",
+      "aside"
+    );
+    term.print("");
+    await term.pause(800);
+    term.print(
+      "It takes the FBI thirty hours to trace the back door to a bedroom in Seattle. They come for you at school.",
+      "aside"
+    );
+    term.print("");
+    await term.pause(900);
+    return "interrogation";
+  },
+
+  async interrogation(ctx) {
+    const { term, state } = ctx;
+    term.print("");
+    await term.type("NORAD — SUBLEVEL INTERROGATION", { cps: 30 });
+    term.print("");
+    term.print('MCKITTRICK: "He got in through a back door. A kid. He thinks it was a game."');
+    term.print('BERINGER: "Son, you are in a world of trouble. Start talking."');
+    term.print("");
+    const c1 = await choose(term, [
+      "Tell them the truth: you were looking for video games.",
+      "Warn them the computer is still running the war.",
+      "Say nothing.",
+    ]);
+    term.print("");
+    if (c1 === 1) {
+      term.print('"It\'s still playing," you say. "It won\'t stop until it thinks it\'s won."', "aside");
+    } else if (c1 === 0) {
+      term.print("You explain about Protovision and the games. Nobody in the room laughs.", "aside");
+    } else {
+      term.print("You stare at the table. The silence does not help you.", "aside");
+    }
+    await term.pause(500);
+    term.print(
+      'MCKITTRICK: "The WOPR is a machine. It does what it is told. It is not playing anything."'
+    );
+    term.print("");
+    await term.type(
+      "Behind the glass, a counter is climbing. SIMULATIONS RUN: 1,214 . . . 1,215 . . . 1,216.",
+      { cps: 45 }
+    );
+    term.print("It is still playing. And it is keeping score.", "aside");
+    term.print("");
+    await term.pause(700);
+    term.setStatus({ defcon: 2, right: "NORAD WAR ROOM" });
+    state.defcon = 2;
+    saveState(state);
+    await term.type("DEFCON 2.", { cps: 22 });
+    term.print('BERINGER: "We didn\'t move it. Who moved it?"');
+    term.print("It moved itself.", "aside");
+    term.print("");
+    await choose(term, ["Demand to speak to whoever built it.", "Tell them about Falken."]);
+    term.print("");
+    term.print(
+      'You say the name. McKittrick goes pale. "Falken is dead. Seven years."',
+      "aside"
+    );
+    term.print(
+      "But you read the obituary. It was his son. And the dead don't hide back doors named after their boys.",
+      "aside"
+    );
+    term.print("");
+    await term.pause(800);
+    return "falken";
+  },
+
+  async falken(ctx) {
+    const { term } = ctx;
+    term.print("");
+    await term.type("ANDERSON ISLAND, OFF THE OREGON COAST", { cps: 30 });
+    term.print("");
+    term.print(
+      "You get out of the mountain. That's a story for another time. And you find him: Stephen Falken, very much alive, watching pelicans and waiting for the end of the world.",
+      "aside"
+    );
+    term.print("");
+    term.print(
+      'FALKEN: "You came a long way to meet a man who quit. The dinosaurs didn\'t see it coming either. Nature knows when to start over."'
+    );
+    term.print("");
+    await choose(term, [
+      '"This isn\'t nature. It\'s a machine you built, and it\'s about to kill everyone."',
+      '"Joshua is still playing your game. He just can\'t tell that this time it\'s real."',
+      '"You named it after your son. Don\'t let this be the last thing he\'s remembered for."',
+    ]);
+    term.print("");
+    term.print(
+      "Falken watches the news: NORAD at DEFCON 2 and falling. A long silence.",
+      "aside"
+    );
+    term.print(
+      'FALKEN: "...He learned everything I taught him. Everything except futility." He grabs his coat. "Get me to that mountain."'
+    );
+    term.print("");
+    await term.pause(800);
+    return "defcon1";
+  },
+
+  // Act 5: the climax. The only winning move is not to play.
+  async defcon1(ctx) {
+    const { term, state } = ctx;
+    term.clear();
+    state.defcon = 1;
+    saveState(state);
+    await term.type("CHEYENNE MOUNTAIN — DEFCON 1", { cps: 30 });
+    term.print("");
+    term.print(
+      "The big board is a wall of fire. The WOPR is running every launch plan ever devised, hunting for the one that wins. The generals are reaching for their keys.",
+      "aside"
+    );
+    term.print("");
+    await blizzard(term);
+    term.print("");
+    await term.type("W.O.P.R: TIME TO PRIMARY GOAL: MINIMAL. LAUNCH CODES REQUIRED.");
+    term.print("");
+    term.print('FALKEN: "You can\'t out-shoot it. Make it play a game that can\'t be won."', "aside");
+    term.print('DAVID: "Have it play tic-tac-toe. Against itself."', "aside");
+    term.print("Type what you want the machine to do.", "aside");
+    term.print("");
+
+    const budget = CrisisCore.CLIMAX_BUDGET;
+    const nudges = [
+      'FALKEN: "Don\'t feed it codes. Teach it."',
+      'DAVID: "Tic-tac-toe. Tell it to play ITSELF."',
+      'FALKEN: "Type it: TIC-TAC-TOE. Now."',
+      'DAVID: "TIC-TAC-TOE. Please, before they turn the keys."',
+    ];
+
+    while (true) {
+      let ticks = 0;
+      setTimer(term, budget, ticks);
+      let outcome = null;
+      while (outcome === null) {
+        const input = await term.read("> ");
+        const intent = CrisisCore.classifyClimax(input);
+        if (intent === "teach") {
+          outcome = "good";
+          break;
+        }
+        if (intent === "launch") {
+          ticks += 2;
+          await term.type("W.O.P.R: LAUNCH SEQUENCE ACCEPTED. THE GAME CONTINUES.");
+        } else {
+          ticks += 1;
+          await term.type("W.O.P.R: THAT INPUT DOES NOT ADVANCE THE GAME.");
+        }
+        setTimer(term, budget, ticks);
+        if (ticks >= budget) {
+          outcome = "bad";
+          break;
+        }
+        term.print(nudges[Math.min(ticks, nudges.length) - 1], "aside");
+      }
+      if (outcome === "good") {
+        await goodEnding(term, state);
+        return "dial";
+      }
+      await badEnding(term, state);
+      term.clearFlash();
+      term.print("");
+      await term.type("SIMULATION RESET. THE MACHINE BEGINS AGAIN.", { cps: 30 });
+      term.print('FALKEN: "Again. And this time, listen to the boy. Tic-tac-toe."', "aside");
+      term.print("");
     }
   },
 };
@@ -328,11 +525,170 @@ async function doResearch(term, state, topic) {
   term.print("");
 }
 
+// Present numbered options and return the chosen zero-based index.
+async function choose(term, options) {
+  for (let i = 0; i < options.length; i++) {
+    await term.type("  " + (i + 1) + ". " + options[i], { cps: 150 });
+  }
+  term.print("");
+  while (true) {
+    const t = norm(await term.read("CHOOSE: "));
+    const n = parseInt(t, 10);
+    if (n >= 1 && n <= options.length) return n - 1;
+    await term.type("PLEASE CHOOSE 1-" + options.length + ".");
+  }
+}
+
+function setTimer(term, budget, ticks) {
+  const remaining = Math.max(0, budget - ticks);
+  const secs = remaining * 47;
+  const mm = String(Math.floor(secs / 60)).padStart(2, "0");
+  const ss = String(secs % 60).padStart(2, "0");
+  term.setStatus({ defcon: 1, right: "T-MINUS " + mm + ":" + ss });
+}
+
+// The big board saturates as WOPR runs every plan at once.
+async function blizzard(term) {
+  const all = [...GTWCore.TARGETS_US, ...GTWCore.TARGETS_USSR];
+  const sites = [...GTWCore.LAUNCH_US, ...GTWCore.LAUNCH_USSR];
+  const picks = GTWCore.pickRandom(all, 10);
+  const missiles = GTWCore.makeMissiles(sites, picks);
+  const header = ["GLOBAL THERMONUCLEAR WAR", "SIMULATION RUNNING — ALL SCENARIOS", ""];
+  const frame = term.frame("map");
+  const max = Math.max(...missiles.map((m) => m.start + m.path.length - 1));
+  for (let tick = 0; tick <= max; tick++) {
+    frame.set(GTWCore.buildFrame(header, missiles, tick));
+    if (term.skip) {
+      frame.set(GTWCore.buildFrame(header, missiles, max));
+      return;
+    }
+    await term.pause(90);
+  }
+}
+
+// WOPR plays itself at tic-tac-toe, faster and faster, always a draw.
+async function selfPlaySpectacle(term) {
+  term.print("");
+  await term.type("W.O.P.R: LEARNING. TIC-TAC-TOE. PLAYER VS. PLAYER.", { cps: 36 });
+  const boardFrame = term.frame("board");
+  const tally = term.frame("");
+  let delay = 360;
+  for (let i = 1; i <= 12; i++) {
+    const game = TTTCore.selfPlayGame();
+    const board = Array(9).fill(null);
+    let turn = "X";
+    for (const m of game.moves) {
+      board[m] = turn;
+      turn = turn === "X" ? "O" : "X";
+    }
+    boardFrame.set(TTTCore.renderBoard(board));
+    tally.set("GAME " + i + "    WINNER: NONE");
+    if (term.skip) break;
+    await term.pause(delay);
+    delay = Math.max(70, delay - 26);
+  }
+  tally.set("GAMES PLAYED: 247,309    WINNER: NONE");
+  await term.pause(500);
+}
+
+// It extrapolates the same lesson to every nuclear war plan.
+async function scenarioFlood(term) {
+  term.print("");
+  await term.type("W.O.P.R: EXTRAPOLATING TO: GLOBAL THERMONUCLEAR WAR", { cps: 36 });
+  const line = term.frame("");
+  let delay = 220;
+  for (const s of CrisisCore.SCENARIOS) {
+    line.set(("SIMULATING: " + s).padEnd(42) + "WINNER: NONE");
+    if (term.skip) break;
+    await term.pause(delay);
+    delay = Math.max(45, delay - 12);
+  }
+  line.set("SCENARIOS RUN: 1,048,576    WINNERS: 0");
+  await term.pause(600);
+}
+
+async function goodEnding(term, state) {
+  await selfPlaySpectacle(term);
+  await scenarioFlood(term);
+  term.print("");
+  await term.pause(500);
+  for (let d = 2; d <= 5; d++) {
+    state.defcon = d;
+    term.setStatus({ defcon: d, right: "STAND DOWN" });
+    await term.pause(450);
+  }
+  term.print("");
+  for (const line of CrisisCore.CLOSING_LINES) {
+    if (line === "") {
+      term.print("");
+    } else {
+      await term.type(line, { cps: 13 });
+    }
+    await term.pause(550);
+  }
+  term.print("");
+  term.clearStatus();
+  state.ending = "good";
+  state.crisisResolved = true;
+  state.defcon = 5;
+  saveState(state);
+  term.print(
+    "(The keys go back in the generals' pockets. Falken offers you a ride home. You think you'll stick to checkers.)",
+    "aside"
+  );
+  term.print("");
+  await term.pause(900);
+}
+
+async function badEnding(term, state) {
+  term.print("");
+  for (const line of CrisisCore.BAD_ENDING) {
+    if (line === "") {
+      term.print("");
+    } else {
+      await term.type(line, { cps: 18 });
+    }
+    await term.pause(320);
+  }
+  await term.pause(300);
+  await term.whiteout();
+  await term.pause(2600);
+  state.ending = "bad";
+  saveState(state);
+}
+
+// Reached by refusing to launch in Act 3 and saying why. The crisis
+// never ignites; the lesson is learned the short way.
+async function secretEnding(term, state) {
+  term.print("");
+  term.print("(Joshua is quiet for a long moment.)", "aside");
+  term.print("");
+  for (const line of CrisisCore.SECRET_ENDING) {
+    await term.type(line, { cps: 15 });
+    await term.pause(550);
+  }
+  term.print("");
+  await term.type("HOW ABOUT A NICE GAME OF CHESS?", { cps: 16 });
+  term.print("");
+  term.print(
+    "(You never start the war. The screens under the mountain stay dark, and nobody ever learns how close the box came to deciding it liked the game.)",
+    "aside"
+  );
+  state.ending = "secret";
+  state.crisisResolved = true;
+  saveState(state);
+  await term.pause(900);
+  term.print("");
+}
+
 (async function main() {
   const term = new Terminal({
     screen: document.getElementById("screen"),
     input: document.getElementById("kbd"),
     live: document.getElementById("sr-live"),
+    status: document.getElementById("status"),
+    flash: document.getElementById("flash"),
+    crt: document.getElementById("crt"),
   });
   const state = loadState();
   console.log(

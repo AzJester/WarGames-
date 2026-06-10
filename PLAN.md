@@ -115,7 +115,7 @@ Alternative considered: a Python CLI with `curses`. Rejected as primary because 
 - `SKIP` command offered at boot, jumping straight to the WOPR connection (Acts 1-2 are optional even on a first play; the logon hint ladder covers skippers).
 - **Done when**: a new player can reach WOPR with no out-of-game knowledge.
 
-### M4: Acts 4-5 (the crisis and climax)
+### M4: Acts 4-5 (the crisis and climax) [SHIPPED]
 - DEFCON tracker, FBI trace events, McKittrick/Beringer dialogue, Falken island scene (rendered as narrative interludes between terminal sessions).
 - Tic-tac-toe self-play spectacle, scenario flood, ending sequence with all three endings.
 - **Done when**: the game is completable start to finish.

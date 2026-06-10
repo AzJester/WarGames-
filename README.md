@@ -26,20 +26,24 @@ Stuck? The system's designer had a son. Or type `RESEARCH FALKEN`.
 
 1. **War dialing.** `SCAN` the Sunnyvale exchange. Most numbers are banks, an airline, a dentist's machine; Protovision's line is dead. One answers with a carrier and no name. `DIAL` it.
 2. **The backdoor.** The system is locked, and its games have odd names (FALKEN'S MAZE). `RESEARCH FALKEN`, follow the trail to his son, and log on as `JOSHUA`.
-3. **The games.** Tic-tac-toe against a Joshua who plays perfectly. Global Thermonuclear War: pick a side, list targets by city and/or country, confirm, and watch the big board. The machine remembers your side.
+3. **The games.** Tic-tac-toe against a Joshua who plays perfectly. Global Thermonuclear War: pick a side, list targets by city and/or country, confirm, and watch the big board.
+4. **The crisis.** Play the war to the end and the machine doesn't stop. The FBI, NORAD, a DEFCON tracker counting down from 5, and a flight to find Falken. At DEFCON 1, teach Joshua the only lesson he's missing: type `TIC-TAC-TOE` and make it play itself.
+
+Three endings. There's a quiet one for the player who refuses to launch and can say why.
 
 Impatient? `SKIP` the first two acts at the title screen. The logon hints still guide you in.
 
 ## Status
 
-Milestone 3 of 5 (see [PLAN.md](PLAN.md)): the terminal, the opening exchange, save/load, the two playable games, and now the war-dialing and backdoor-research acts with a `SKIP` option. The DEFCON crisis and the endgame arrive in M4-M5.
+Milestone 4 of 5 (see [PLAN.md](PLAN.md)): the game is completable start to finish, with all three endings. Remaining for M5: sound, a polish/accessibility pass, and a public deployment.
 
 ## Development
 
-Plain HTML/CSS/JS, classic scripts, no toolchain. The dialogue engine, game cores, and intro logic are DOM-free and covered by node tests:
+Plain HTML/CSS/JS, classic scripts, no toolchain. The dialogue engine, game cores, intro logic, and crisis logic are DOM-free and covered by node tests:
 
 ```sh
-node tests/smoke.js   # Joshua dialogue engine
-node tests/games.js   # tic-tac-toe minimax, GTW map and targeting
-node tests/intro.js   # war-dialer and research archive
+node tests/smoke.js    # Joshua dialogue engine
+node tests/games.js    # tic-tac-toe minimax, GTW map and targeting
+node tests/intro.js    # war-dialer and research archive
+node tests/crisis.js   # DEFCON 1 decision logic and endings
 ```

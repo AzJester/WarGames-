@@ -17,6 +17,8 @@ function defaultState() {
     defcon: 5,
     metWopr: false,
     knowsJoshua: false,
+    crisisResolved: false,
+    ending: null,
   };
 }
 
