@@ -1,9 +1,17 @@
 /*
- * The authentic IBM VGA 8x16 text-mode face (the DOS font), vendored as a
- * vector build of the CP437 bitmap. It carries the box-drawing and block
- * glyphs at the same fixed width as the letters, so the tic-tac-toe and
- * big-board grids stay aligned. Path is relative to this stylesheet.
+ * Glass TTY VT220 is the rounded terminal face from the film's WOPR
+ * displays. Box-drawing, block, shade, and marker glyphs were synthesized
+ * into it at its own monospace width so the grids and big board align.
+ * The IBM VGA 8x16 build (same 1:2 width) stays as a fallback. Paths are
+ * relative to this stylesheet.
  */
+@font-face {
+  font-family: "Glass TTY VT220";
+  src: url("../assets/fonts/GlassTTYVT220.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
 @font-face {
   font-family: "IBM VGA 8x16";
   src: url("../assets/fonts/IBMVGA8x16.woff2") format("woff2");
@@ -17,8 +25,8 @@
   --glow: rgba(58, 255, 110, 0.5);
   --amber: #ffb000;
   --amber-glow: rgba(255, 176, 0, 0.35);
-  /* DOS face first; the monospace stack covers load time and any gap. */
-  --mono: "IBM VGA 8x16", ui-monospace, "Liberation Mono", "Courier New", monospace;
+  /* Film terminal face first; both fallbacks share the same 1:2 width. */
+  --mono: "Glass TTY VT220", "IBM VGA 8x16", ui-monospace, "Liberation Mono", "Courier New", monospace;
 }
 
 * { box-sizing: border-box; }

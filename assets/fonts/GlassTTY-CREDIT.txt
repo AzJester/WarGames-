@@ -1,0 +1,5 @@
+Glass TTY VT220 by Viacheslav Slavinsky (svofski)
+https://github.com/svofski/glasstty  /  https://sensi.org/~svo/glasstty/
+Released free for any use. This copy adds synthesized box-drawing, block,
+shade, and marker glyphs (─ │ ┼ ┌ ┐ └ ┘ █ ░ ▒ ▓ ● ▲ ■ • ►) at the font's
+own monospace width so the WarGames grids and big board stay aligned.
