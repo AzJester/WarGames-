@@ -20,6 +20,10 @@ python3 -m http.server 8000
 # then visit http://localhost:8000
 ```
 
+## Never seen the movie?
+
+You don't need to. Type `STORY` at any prompt for a one-minute, spoiler-free briefing. The short version: it's 1983, the US and the Soviet Union hold each other at nuclear gunpoint, and computers talk over phone lines. You're a teenager hunting an unreleased video game, and the unlabeled computer you find instead doesn't entirely grasp the difference between games and reality. The amber italic lines throughout are your own thoughts — when you're stuck, they point the way.
+
 ## How it plays
 
 1. **War dialing.** `SCAN` the Sunnyvale exchange. Most numbers are banks, an airline, a dentist's machine; Protovision's line is dead. One answers with a carrier and no name. `DIAL` it.
