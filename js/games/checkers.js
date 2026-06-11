@@ -103,13 +103,13 @@ const CheckersCore = (() => {
     return best;
   }
 
-  function bestMove(b, side, rng = Math.random) {
+  function bestMove(b, side, rng = Math.random, depth = 3) {
     const ms = moves(b, side);
     if (!ms.length) return null;
     // prefer jumps, then search
     const jumps = ms.filter((m) => m.jump);
     if (jumps.length) return jumps[Math.floor(rng() * jumps.length)];
-    return search(b, side, 3).move || ms[Math.floor(rng() * ms.length)];
+    return search(b, side, depth).move || ms[Math.floor(rng() * ms.length)];
   }
 
   function render(b) {
@@ -181,7 +181,9 @@ async function playCheckers(term, state) {
       await term.type("YOU WIN. RECORDED.");
       break;
     }
-    const jm = CheckersCore.bestMove(b, "x");
+    const diff = typeof getDifficulty === "function" ? getDifficulty() : "normal";
+    const depth = diff === "easy" ? 1 : diff === "hard" ? 5 : 3;
+    const jm = CheckersCore.bestMove(b, "x", Math.random, depth);
     if (!jm) {
       term.print("");
       term.print(CheckersCore.render(b), "board");

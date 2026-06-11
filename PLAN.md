@@ -141,6 +141,13 @@ Alternative considered: a Python CLI with `curses`. Rejected as primary because 
 - Texture: crisis music (synthesized arpeggio), Joshua table-talk, CAPTIONS ON for non-speech cues.
 - Engineering: a Playwright real-browser smoke test in CI (fonts, canvas, event loop) — the class of bug the DOM stub cannot catch.
 
+### M8: Realism and reach (post-ship, by request)
+- Real geography: Natural Earth coastlines baked into js/geo.js, true lat/lon for all cities and missile fields (plus SSBN patrol boxes), great-circle trajectories, and a polar NORAD-wall view (VIEW POLAR). The ASCII board re-rasterized from the same data.
+- ABM interceptors driven by a DIFFICULTY setting; two-player hotseat GTW.
+- Canvas tic-tac-toe montage at the climax; segmented DEFCON gauge.
+- PWA (manifest + service worker, offline play, installable), visible mobile input bar.
+- LISTEN ON speech input; SHARE keepsake ending card.
+
 ## 5. Stretch Goals
 - Playable chess and checkers with real (weak) AIs.
 - Speech synthesis for Joshua's lines (WebSpeech API, heavily filtered).

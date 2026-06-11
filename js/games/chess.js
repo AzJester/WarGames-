@@ -201,7 +201,12 @@ async function playChess(term, state) {
       await term.type("MY KING HAS FALLEN. YOU WIN. I WILL REMEMBER THIS.");
       break;
     }
-    const jm = ChessCore.bestMove(b, false);
+    const diff = typeof getDifficulty === "function" ? getDifficulty() : "normal";
+    const legal2 = ChessCore.moves(b, false);
+    const jm =
+      diff === "easy" && Math.random() < 0.35 && legal2.length
+        ? legal2[Math.floor(Math.random() * legal2.length)]
+        : ChessCore.bestMove(b, false);
     if (!jm) {
       await term.type("I HAVE NO MOVES. YOU WIN.");
       break;

@@ -34,7 +34,9 @@ Three endings, including a quiet one for the player who refuses to launch and ca
 - Type and press Enter. Any key or tap skips the typewriter (and the animations).
 - Up/Down arrows recall input history. Escape clears the line.
 - `SOUND OFF` / `SOUND ON` toggle audio (on by default). `VOICE OFF` silences Joshua. `FAST` / `SLOW` change text speed.
-- `MODE MODERN` (default) renders the big board on canvas: a glowing dot-matrix world map with smooth ballistic arcs, comet heads, impact rings, launch whooshes, and impact booms. `MODE CLASSIC` switches back to the pure ASCII board.
+- `MODE MODERN` (default) renders the big board on canvas with **real coastlines** (Natural Earth data), true city and missile-field coordinates, and **great-circle trajectories** that genuinely cross the Arctic. `VIEW POLAR` switches to the NORAD-wall over-the-pole projection; `VIEW FLAT` is the default world map. `MODE CLASSIC` keeps the ASCII board (also re-rasterized from real geography).
+- `DIFFICULTY EASY|NORMAL|HARD` tunes the game AIs and the ABM screens (on easy, interceptors thin the retaliation aimed at you; on hard, yours). Global Thermonuclear War side select includes `3. TWO PLAYERS` for hotseat mutual destruction.
+- `LISTEN ON` lets you speak to Joshua (Chrome; uses the browser's speech recognition). `SHARE` after finishing saves a keepsake ending card. The game installs as an app and works offline (PWA).
 - `CAPTIONS ON` prints labels for non-speech sound cues. `STATS` shows your record. `MENU` (after finishing once) jumps to any act.
 - `SKIP` at the title jumps to the system. `RESET` at the `LOGON:` prompt wipes saved progress.
 
@@ -69,6 +71,7 @@ css/crt.css           phosphor theme, scanlines, DEFCON bar, whiteout
 js/terminal.js        typewriter output, input, status bar, animation frames
 js/sound.js           synthesized modem / klaxon / key clicks (WebAudio)
 js/parser.js          shared parsing (game aliases, yes/no)
+js/geo.js             baked Natural Earth coastlines + land raster
 js/intro.js           Acts 1-2: war-dial pool + research archive
 js/wopr.js            Joshua's dialogue engine
 js/games/             tic-tac-toe and Global Thermonuclear War

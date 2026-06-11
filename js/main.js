@@ -150,6 +150,62 @@ async function handleGlobalCommand(term, t, state) {
     await term.type("DISPLAY MODE IS " + m + ". TYPE MODE MODERN OR MODE CLASSIC.");
     return true;
   }
+  if (t === "view polar" || t === "polar") {
+    if (typeof Modern !== "undefined") Modern.setView("polar");
+    await term.type("BOARD VIEW: POLAR. THE SHORTEST PATH CROSSES THE ARCTIC.");
+    return true;
+  }
+  if (t === "view flat") {
+    if (typeof Modern !== "undefined") Modern.setView("flat");
+    await term.type("BOARD VIEW: FLAT.");
+    return true;
+  }
+  if (t === "view") {
+    const v = typeof Modern !== "undefined" ? Modern.getView().toUpperCase() : "FLAT";
+    await term.type("BOARD VIEW IS " + v + ". TYPE VIEW FLAT OR VIEW POLAR.");
+    return true;
+  }
+  if (/^difficulty (easy|normal|hard)$/.test(t)) {
+    const d = setDifficulty(t.split(" ")[1]);
+    await term.type("DIFFICULTY: " + d.toUpperCase() + ".");
+    return true;
+  }
+  if (t === "difficulty") {
+    await term.type(
+      "DIFFICULTY IS " + getDifficulty().toUpperCase() + ". TYPE DIFFICULTY EASY, NORMAL OR HARD."
+    );
+    return true;
+  }
+  if (t === "listen on" || t === "listen") {
+    if (startListening(term)) {
+      await term.type("LISTENING. SPEAK, PROFESSOR.");
+    } else {
+      await term.type("SPEECH RECOGNITION IS NOT AVAILABLE IN THIS BROWSER.");
+    }
+    return true;
+  }
+  if (t === "listen off") {
+    stopListening();
+    await term.type("LISTENING STOPPED.");
+    return true;
+  }
+  if (t === "share" && state) {
+    if (!state.ending) {
+      await term.type("FINISH THE GAME FIRST, PROFESSOR.");
+      return true;
+    }
+    const url = typeof Modern !== "undefined" ? Modern.endingCard(state) : null;
+    if (url && typeof document !== "undefined") {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "wargames-ending.png";
+      a.click();
+      await term.type("KEEPSAKE CARD SAVED.");
+    } else {
+      await term.type("CARD GENERATION IS NOT AVAILABLE HERE.");
+    }
+    return true;
+  }
   if (t === "fast") {
     term.fast = true;
     saveFast(true);
@@ -163,6 +219,46 @@ async function handleGlobalCommand(term, t, state) {
     return true;
   }
   return false;
+}
+
+// Optional speech input via the Web Speech API: finals land as typed lines.
+let recognizer = null;
+
+function startListening(term) {
+  if (recognizer) return true;
+  const SR =
+    typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+  if (!SR) return false;
+  try {
+    recognizer = new SR();
+    recognizer.lang = "en-US";
+    recognizer.continuous = true;
+    recognizer.interimResults = false;
+    recognizer.onresult = (e) => {
+      const last = e.results[e.results.length - 1];
+      if (last && last.isFinal) term.submitLine(last[0].transcript.trim());
+    };
+    recognizer.onend = () => {
+      if (recognizer) recognizer.start(); // keep listening until LISTEN OFF
+    };
+    recognizer.start();
+    return true;
+  } catch (e) {
+    recognizer = null;
+    return false;
+  }
+}
+
+function stopListening() {
+  if (!recognizer) return;
+  const r = recognizer;
+  recognizer = null;
+  try {
+    r.onend = null;
+    r.stop();
+  } catch (e) {
+    /* already stopped */
+  }
 }
 
 function saveFast(on) {
@@ -863,7 +959,7 @@ function setTimer(term, budget, ticks) {
 // The big board saturates as WOPR runs every plan at once.
 async function blizzard(term) {
   const all = [...GTWCore.TARGETS_US, ...GTWCore.TARGETS_USSR];
-  const sites = [...GTWCore.LAUNCH_US, ...GTWCore.LAUNCH_USSR];
+  const sites = [...GTWCore.SITES_US, ...GTWCore.SITES_USSR];
   // Every plan at once: a dense fan of tracks crossing the whole board.
   const missiles = GTWCore.fanMissiles(sites, all, 40);
   await runVolley(term, ["SIMULATION RUNNING — ALL SCENARIOS"], missiles);
@@ -874,6 +970,16 @@ async function selfPlaySpectacle(term) {
   term.print("");
   vox("LEARNING. TIC TAC TOE. PLAYER VERSUS PLAYER.");
   await term.type("W.O.P.R: LEARNING. TIC-TAC-TOE. PLAYER VS. PLAYER.", { cps: 36 });
+  if (typeof Modern !== "undefined" && Modern.isModern()) {
+    const games = Array.from({ length: 14 }, () => TTTCore.selfPlayGame());
+    const montage = Modern.renderTTTMontage(term, games);
+    if (montage) {
+      await montage;
+      term.print("");
+      await term.pause(500);
+      return;
+    }
+  }
   const boardFrame = term.frame("board");
   const tally = term.frame("");
   let delay = 360;
@@ -946,6 +1052,7 @@ async function goodEnding(term, state) {
     "(The keys go back in the generals' pockets. Falken offers you a ride home. You think you'll stick to checkers.)",
     "aside"
   );
+  term.print("(Type SHARE for a keepsake card. STATS for your record.)", "aside");
   term.print("");
   await term.pause(900);
 }
@@ -1017,5 +1124,8 @@ async function secretEnding(term, state) {
     "color:#3aff6e;background:#000;font-size:14px;font-family:monospace;padding:4px 8px;"
   );
   console.log("Stuck at LOGON? Falken had a son. Or just type SKIP at the start.");
+  if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
   await runScenes(scenes, "boot", { term, state, dialed: false });
 })();

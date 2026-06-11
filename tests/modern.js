@@ -15,7 +15,7 @@ global.localStorage = {
 };
 
 function load() {
-  const src = ["js/parser.js", "js/games/gtw.js", "js/modern.js"]
+  const src = ["js/parser.js", "js/geo.js", "js/games/gtw.js", "js/modern.js"]
     .map((f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8"))
     .join("\n");
   const tmp = path.join(os.tmpdir(), `modern-under-test-${process.pid}-${Math.random()}.js`);

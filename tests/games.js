@@ -7,12 +7,12 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const src = ["js/parser.js", "js/games/tictactoe.js", "js/games/gtw.js"]
+const src = ["js/parser.js", "js/geo.js", "js/games/tictactoe.js", "js/games/gtw.js"]
   .map((f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8"))
   .join("\n");
 const tmp = path.join(os.tmpdir(), `games-under-test-${process.pid}.js`);
-fs.writeFileSync(tmp, src + "\nmodule.exports = { TTTCore, GTWCore, norm };\n");
-const { TTTCore, GTWCore } = require(tmp);
+fs.writeFileSync(tmp, src + "\nmodule.exports = { TTTCore, GTWCore, GEO, norm };\n");
+const { TTTCore, GTWCore, GEO } = require(tmp);
 fs.unlinkSync(tmp);
 
 // Deterministic rng for reproducible runs.
@@ -141,7 +141,7 @@ check("plotPath starts at the site and ends at the target", () => {
 
 check("buildFrame keeps dimensions stable and lands impacts", () => {
   const targets = [GTWCore.TARGETS_US[0], GTWCore.TARGETS_US[4]];
-  const missiles = GTWCore.makeMissiles(GTWCore.LAUNCH_USSR, targets);
+  const missiles = GTWCore.makeMissiles(GTWCore.SITES_USSR, targets);
   const maxTick = Math.max(...missiles.map((m) => m.start + m.path.length - 1));
   const early = GTWCore.buildFrame(["TEST"], missiles, 0).split("\n");
   const late = GTWCore.buildFrame(["TEST"], missiles, maxTick + 2).split("\n");
@@ -165,6 +165,54 @@ check("pickRandom returns unique entries", () => {
   const picked = GTWCore.pickRandom(GTWCore.TARGETS_USSR, 5, rng);
   assert.strictEqual(picked.length, 5);
   assert.strictEqual(new Set(picked).size, 5);
+});
+
+
+check("real geography: grid rows uniform, coastlines populated", () => {
+  for (const row of GTWCore.MAP) assert.strictEqual(row.length, GTWCore.MAP_W);
+  assert.ok(typeof GEO !== "undefined" && GEO.COAST.length >= 40, "coastlines missing");
+  for (const ring of GEO.COAST) {
+    for (const [lon, lat] of ring) {
+      assert.ok(lon >= -180 && lon <= 180 && lat >= -90 && lat <= 90);
+    }
+  }
+});
+
+check("great-circle paths cross the Arctic between the superpowers", () => {
+  const seattle = GTWCore.TARGETS_US.find((t) => t.name === "SEATTLE");
+  const moscow = GTWCore.TARGETS_USSR.find((t) => t.name === "MOSCOW");
+  let maxLat = -90;
+  for (let i = 0; i <= 40; i++) {
+    const [, lat] = GTWCore.gc([seattle.lon, seattle.lat], [moscow.lon, moscow.lat], i / 40);
+    maxLat = Math.max(maxLat, lat);
+  }
+  assert.ok(maxLat > 75, "expected a polar route, peak lat " + maxLat.toFixed(1));
+  const [elon, elat] = GTWCore.gc([seattle.lon, seattle.lat], [moscow.lon, moscow.lat], 1);
+  assert.ok(Math.abs(elon - moscow.lon) < 0.5 && Math.abs(elat - moscow.lat) < 0.5);
+});
+
+check("projections stay in the unit square", () => {
+  for (const t of [...GTWCore.TARGETS_US, ...GTWCore.TARGETS_USSR]) {
+    for (const proj of [GTWCore.projectFlat, GTWCore.projectPolar]) {
+      const [u, v] = proj(t.lon, t.lat);
+      assert.ok(u >= 0 && u <= 1.05 && v >= 0 && v <= 1.05, t.name);
+    }
+  }
+});
+
+check("intercepts truncate paths and mark missiles", () => {
+  const targets = GTWCore.TARGETS_USSR.slice(0, 4);
+  const missiles = GTWCore.makeMissiles(GTWCore.SITES_US, targets);
+  const before = missiles.map((m) => m.path.length);
+  const n = GTWCore.planIntercepts(missiles, 1, () => 0);
+  assert.strictEqual(n, 4);
+  missiles.forEach((m, i) => {
+    assert.ok(m.intercepted);
+    assert.ok(m.path.length < before[i]);
+  });
+  const frame = GTWCore.buildFrame(["T"], missiles, 999);
+  assert.ok(frame.includes("INTERCEPTED:  4"));
+  assert.ok(frame.includes("IMPACTS CONFIRMED:  0"));
 });
 
 console.log(`\nALL TESTS PASSED (${passed})`);

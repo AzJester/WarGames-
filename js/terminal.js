@@ -75,7 +75,7 @@ class Terminal {
   setStatus({ defcon, right = "" }) {
     if (!this.statusEl) return;
     this.statusEl.className = "defcon-" + defcon;
-    const bars = "█".repeat(6 - defcon) + "·".repeat(defcon - 1);
+    const bars = "█".repeat((6 - defcon) * 2) + "·".repeat((defcon - 1) * 2);
     this.statusEl.textContent =
       `DEFCON ${defcon} [${bars}]` + (right ? "    " + right : "");
     this.statusEl.style.display = "block";
@@ -86,6 +86,15 @@ class Terminal {
     if (!this.statusEl) return;
     this.statusEl.style.display = "none";
     if (this.crt) this.crt.classList.remove("has-status");
+  }
+
+  // Programmatic input (speech recognition). Only lands while reading.
+  submitLine(text) {
+    if (!this.reading) return false;
+    this.input.value = text;
+    this._mirror();
+    this._submit();
+    return true;
   }
 
   clear() {
