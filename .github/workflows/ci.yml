@@ -17,7 +17,23 @@ jobs:
         run: |
           node tests/smoke.js
           node tests/games.js
+          node tests/games2.js
           node tests/intro.js
           node tests/crisis.js
           node tests/sound.js
           node tests/modern.js
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null
+          npm install playwright@1 >/dev/null
+          npx playwright install --with-deps chromium
+      - name: Browser smoke test
+        run: node tests/browser.js

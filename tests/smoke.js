@@ -91,11 +91,24 @@ check("asking for GTW immediately skips the pleasantries", () => {
   assert.strictEqual(gameOf(ops), GTW);
 });
 
-check("accepting the chess counter-offer hits the chess stub", () => {
+check("accepting the chess counter-offer launches chess", () => {
   const j = new Joshua();
   j.respond("global thermonuclear war");
-  const t = texts(j.respond("yes"));
-  assert.ok(t[0].includes("CHESS MODULE IS NOT INSTALLED"));
+  const ops = j.respond("yes");
+  assert.strictEqual(gameOf(ops), "CHESS");
+});
+
+check("the new games launch directly", () => {
+  for (const [ask, game] of [
+    ["checkers", "CHECKERS"],
+    ["black jack", "BLACK JACK"],
+    ["poker", "POKER"],
+    ["falkens maze", "FALKEN'S MAZE"],
+    ["chess", "CHESS"],
+  ]) {
+    const j = new Joshua();
+    assert.strictEqual(gameOf(j.respond(ask)), game, ask);
+  }
 });
 
 check("tic-tac-toe launches directly", () => {
@@ -108,8 +121,8 @@ check("tic-tac-toe launches directly", () => {
 check("unplayable games point at the installed simulations", () => {
   const j = new Joshua();
   j.beat = "free";
-  const t = texts(j.respond("poker"));
-  assert.strictEqual(t[0], "POKER MODULE IS NOT INSTALLED.");
+  const t = texts(j.respond("hearts"));
+  assert.strictEqual(t[0], "HEARTS MODULE IS NOT INSTALLED.");
   assert.ok(t[1].includes("TIC-TAC-TOE"));
 });
 

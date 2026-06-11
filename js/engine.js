@@ -19,6 +19,9 @@ function defaultState() {
     knowsJoshua: false,
     crisisResolved: false,
     ending: null,
+    endingsSeen: [],
+    gamesPlayed: 0,
+    suspicion: 2,
   };
 }
 

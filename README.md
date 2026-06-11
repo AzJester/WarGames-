@@ -24,10 +24,10 @@ python3 -m http.server 8000
 
 1. **War dialing.** `SCAN` the Sunnyvale exchange. Most numbers are banks, an airline, a dentist's machine; Protovision's line is dead. One answers with a carrier and no name. `DIAL` it.
 2. **The backdoor.** The system is locked, and its games have odd names (FALKEN'S MAZE). `RESEARCH FALKEN`, follow the trail to his son, and log on as `JOSHUA`.
-3. **The games.** Tic-tac-toe against a Joshua who plays perfectly. Global Thermonuclear War: pick a side, list targets by city and/or country, confirm, and watch the big board.
-4. **The crisis.** Play the war to the end and the machine doesn't stop. The FBI, NORAD, a DEFCON tracker counting down from 5, and a flight to find Falken. At DEFCON 1, teach Joshua the only lesson he's missing: type `TIC-TAC-TOE` and make it play itself.
+3. **The games.** Seven are playable: tic-tac-toe, chess (casual WOPR rules: the game ends when a king falls), checkers, black jack, five-card-draw poker, Falken's Maze, and Global Thermonuclear War with the big board.
+4. **The crisis.** Play the war to the end and the machine doesn't stop. How you handle the NORAD interrogation sets how much they trust you; that trust is the time you get at DEFCON 1 while WOPR brute-forces the launch code character by character on the status bar. Escape the infirmary (the door code is hiding in something you already know), find Falken, and teach Joshua the only lesson he's missing: type `TIC-TAC-TOE` and make it play itself.
 
-Three endings, including a quiet one for the player who refuses to launch and can say why. Impatient? `SKIP` the first two acts at the title screen; the logon hints still guide you in.
+Three endings, including a quiet one for the player who refuses to launch and can say why. Type `STATS` for your record and endings found; finish the story once and `MENU` at boot jumps anywhere. Impatient? `SKIP` the first two acts at the title; the logon hints still guide you in.
 
 ## Controls
 
@@ -35,6 +35,7 @@ Three endings, including a quiet one for the player who refuses to launch and ca
 - Up/Down arrows recall input history. Escape clears the line.
 - `SOUND OFF` / `SOUND ON` toggle audio (on by default). `VOICE OFF` silences Joshua. `FAST` / `SLOW` change text speed.
 - `MODE MODERN` (default) renders the big board on canvas: a glowing dot-matrix world map with smooth ballistic arcs, comet heads, impact rings, launch whooshes, and impact booms. `MODE CLASSIC` switches back to the pure ASCII board.
+- `CAPTIONS ON` prints labels for non-speech sound cues. `STATS` shows your record. `MENU` (after finishing once) jumps to any act.
 - `SKIP` at the title jumps to the system. `RESET` at the `LOGON:` prompt wipes saved progress.
 
 Stuck? The system's designer had a son. Or type `RESEARCH FALKEN`.
@@ -52,9 +53,12 @@ Plain HTML/CSS/JS, classic scripts, no toolchain. The dialogue, game, intro, cri
 ```sh
 node tests/smoke.js    # Joshua dialogue engine
 node tests/games.js    # tic-tac-toe minimax, GTW map and targeting
+node tests/games2.js   # chess, checkers, cards, maze, crisis additions
 node tests/intro.js    # war-dialer and research archive
 node tests/crisis.js   # DEFCON 1 decision logic and endings
 node tests/sound.js    # sound module (no-op without WebAudio)
+node tests/modern.js   # modern-mode core (dots, arcs, fallback)
+node tests/browser.js  # real-browser smoke test (CI; needs playwright)
 ```
 
 ### Layout

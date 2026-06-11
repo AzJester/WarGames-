@@ -134,6 +134,13 @@ Alternative considered: a Python CLI with `curses`. Rejected as primary because 
 - `MODE MODERN` (default) / `MODE CLASSIC` toggle, persisted. ASCII board remains the fallback wherever canvas is unavailable and under reduced motion the final frame renders without animation.
 - **Done when**: a volley renders as animated vector arcs with audio, and CLASSIC still gives the original board.
 
+### M7: Depth pass (post-ship, by request)
+- Six more playable games: chess (casual king-capture rules), checkers, black jack, five-card-draw poker, and Falken's Maze, all with pure tested cores.
+- The crisis grows teeth: interrogation choices set a suspicion score that becomes the DEFCON 1 turn budget; the infirmary escape is a door-code puzzle; WOPR brute-forces CPE 1704 TKS on the status bar as the clock runs.
+- Replay: STATS command, endings tracker, MENU jump after first completion.
+- Texture: crisis music (synthesized arpeggio), Joshua table-talk, CAPTIONS ON for non-speech cues.
+- Engineering: a Playwright real-browser smoke test in CI (fonts, canvas, event loop) — the class of bug the DOM stub cannot catch.
+
 ## 5. Stretch Goals
 - Playable chess and checkers with real (weak) AIs.
 - Speech synthesis for Joshua's lines (WebSpeech API, heavily filtered).

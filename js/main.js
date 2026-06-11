@@ -28,8 +28,35 @@ async function showGameList(term) {
   term.print("");
 }
 
+// Sound captions for deaf players: CAPTIONS ON prints a dim label when a
+// non-speech cue fires. Off by default; persisted.
+let captionsOn = false;
+try {
+  if (typeof localStorage !== "undefined") {
+    captionsOn = localStorage.getItem("wargames-captions") === "on";
+  }
+} catch (e) {
+  /* storage blocked */
+}
+
+function caption(term, label) {
+  if (captionsOn) term.print("[ SOUND: " + label + " ]", "dim");
+}
+
+function setCaptions(on) {
+  captionsOn = !!on;
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("wargames-captions", captionsOn ? "on" : "off");
+    }
+  } catch (e) {
+    /* storage blocked */
+  }
+}
+
 async function connectTone(term) {
   if (typeof Sound !== "undefined") Sound.modem();
+  caption(term, "MODEM DIAL AND HANDSHAKE");
   await term.type("RINGING . . .", { cps: 8, cls: "dim" });
   await term.pause(500);
   await term.type("CARRIER 1200", { cps: 40, cls: "dim" });
@@ -46,8 +73,37 @@ function hush() {
   if (typeof Sound !== "undefined") Sound.shutUp();
 }
 
-// SOUND, VOICE, and FAST work at any prompt. Returns true if it handled it.
-async function handleGlobalCommand(term, t) {
+// SOUND, VOICE, MODE, FAST, CAPTIONS, and STATS work at any prompt.
+// Returns true if it handled the input. `state` is optional (STATS only).
+async function handleGlobalCommand(term, t, state) {
+  if (t === "captions on") {
+    setCaptions(true);
+    await term.type("CAPTIONS ON.");
+    return true;
+  }
+  if (t === "captions off") {
+    setCaptions(false);
+    await term.type("CAPTIONS OFF.");
+    return true;
+  }
+  if (t === "captions") {
+    await term.type("CAPTIONS ARE " + (captionsOn ? "ON" : "OFF") + ". TYPE CAPTIONS ON OR CAPTIONS OFF.");
+    return true;
+  }
+  if ((t === "stats" || t === "score") && state) {
+    const endings = (state.endingsSeen || []).length;
+    const lines = [
+      "GAMES PLAYED: " + ((state.gamesPlayed || 0) + (state.tttGames || 0)) + ".",
+      "TIC-TAC-TOE: " + (state.tttGames || 0) + " GAMES, " + (state.tttDraws || 0) + " TIES.",
+      "WARS STARTED: " + (state.gtwRuns || 0) + ". LAUNCHES REFUSED: " + (state.refusedLaunch ? "YES" : "NO") + ".",
+      "ENDINGS WITNESSED: " + endings + " OF 3" + (endings ? " (" + state.endingsSeen.join(", ").toUpperCase() + ")" : "") + ".",
+    ];
+    for (const line of lines) {
+      vox(line);
+      await term.type(line);
+    }
+    return true;
+  }
   if (t === "sound off" || t === "mute") {
     if (typeof Sound !== "undefined") Sound.setEnabled(false);
     await term.type("SOUND OFF.");
@@ -142,9 +198,20 @@ const scenes = {
     term.print("");
     await term.pause(900);
 
-    // A returning player who already found WOPR skips the search.
+    // A returning player who already found WOPR skips the search; one who
+    // has finished the story also unlocks the MENU jump.
     if (state.metWopr) {
       term.print("(Welcome back. Reconnecting to the last system.)", "aside");
+      if (state.ending) {
+        term.print("(You have finished the story. Type MENU to jump anywhere, or press ENTER to reconnect.)", "aside");
+        term.print("");
+        while (true) {
+          const t = norm(await term.read("> "));
+          if (await handleGlobalCommand(term, t, state)) continue;
+          if (t === "menu") return "menu";
+          break;
+        }
+      }
       term.print("");
       await term.pause(600);
       ctx.skipFraming = true;
@@ -173,7 +240,7 @@ const scenes = {
 
     while (true) {
       const t = norm(await term.read("> "));
-      if (await handleGlobalCommand(term, t)) continue;
+      if (await handleGlobalCommand(term, t, ctx.state)) continue;
       if (t === "skip") {
         ctx.skipFraming = true;
         return "dial";
@@ -288,7 +355,7 @@ const scenes = {
       const value = await term.read("LOGON: ");
       const t = norm(value);
       if (!t) continue;
-      if (await handleGlobalCommand(term, t)) continue;
+      if (await handleGlobalCommand(term, t, state)) continue;
       if (t === "help games") {
         await term.type(
           "'GAMES' REFERS TO MODELS, SIMULATIONS AND GAMES WHICH HAVE TACTICAL AND STRATEGIC APPLICATIONS."
@@ -347,7 +414,24 @@ const scenes = {
     await term.pause(900);
     vox("GREETINGS PROFESSOR FALKEN.");
     await term.type("GREETINGS PROFESSOR FALKEN.", { cps: 22 });
-    if (joshua.returning) {
+    if (ctx.autoGTW) {
+      ctx.autoGTW = false;
+      vox("RESUMING: GLOBAL THERMONUCLEAR WAR.");
+      await term.type("RESUMING: GLOBAL THERMONUCLEAR WAR.");
+      const result = await playGTW(term, state);
+      saveState(state);
+      if (result.secret) {
+        await secretEnding(term, state);
+        return "dial";
+      }
+      if (result.completed) {
+        return state.crisisResolved ? "dial" : "crisis";
+      }
+      term.print("");
+      vox("SHALL WE PLAY A DIFFERENT GAME?");
+      await term.type("SHALL WE PLAY A DIFFERENT GAME?");
+      joshua.pending = "play";
+    } else if (joshua.returning) {
       const back = "YOU CHOSE THE " + state.lastSide + " LAST TIME. THE SIMULATION REMAINS UNFINISHED.";
       vox(back);
       await term.type(back);
@@ -358,7 +442,7 @@ const scenes = {
     while (true) {
       const value = await term.read("> ");
       hush();
-      if (await handleGlobalCommand(term, norm(value))) continue;
+      if (await handleGlobalCommand(term, norm(value), state)) continue;
       const ops = joshua.respond(value);
       for (const op of ops) {
         if (op.kind === "say") {
@@ -373,13 +457,7 @@ const scenes = {
         } else if (op.kind === "list") {
           await showGameList(term);
         } else if (op.kind === "game") {
-          if (op.game === "TIC-TAC-TOE") {
-            await playTicTacToe(term, state);
-            saveState(state);
-            term.print("");
-            await term.type("SHALL WE PLAY A DIFFERENT GAME?");
-            joshua.pending = "play";
-          } else {
+          if (op.game === GTW) {
             const result = await playGTW(term, state);
             saveState(state);
             if (result.secret) {
@@ -389,10 +467,21 @@ const scenes = {
             if (result.completed) {
               return state.crisisResolved ? "dial" : "crisis";
             }
-            term.print("");
-            await term.type("SHALL WE PLAY A DIFFERENT GAME?");
-            joshua.pending = "play";
+          } else {
+            const table = {
+              "TIC-TAC-TOE": playTicTacToe,
+              CHESS: playChess,
+              CHECKERS: playCheckers,
+              "BLACK JACK": playBlackjack,
+              POKER: playPoker,
+              "FALKEN'S MAZE": playMaze,
+            };
+            await table[op.game](term, state);
+            saveState(state);
           }
+          term.print("");
+          await term.type("SHALL WE PLAY A DIFFERENT GAME?");
+          joshua.pending = "play";
         } else if (op.kind === "logoff") {
           term.print("");
           await term.pause(400);
@@ -459,10 +548,13 @@ const scenes = {
     term.print("");
     if (c1 === 1) {
       term.print('"It\'s still playing," you say. "It won\'t stop until it thinks it\'s won."', "aside");
+      state.suspicion = 1; // they half-believe you
     } else if (c1 === 0) {
       term.print("You explain about Protovision and the games. Nobody in the room laughs.", "aside");
+      state.suspicion = 2;
     } else {
       term.print("You stare at the table. The silence does not help you.", "aside");
+      state.suspicion = 3;
     }
     await term.pause(500);
     term.print(
@@ -480,11 +572,14 @@ const scenes = {
     state.defcon = 2;
     saveState(state);
     if (typeof Sound !== "undefined") Sound.klaxon();
+    caption(term, "KLAXON");
     await term.type("DEFCON 2.", { cps: 22 });
     term.print('BERINGER: "We didn\'t move it. Who moved it?"');
     term.print("It moved itself.", "aside");
     term.print("");
-    await choose(term, ["Demand to speak to whoever built it.", "Tell them about Falken."]);
+    const c2 = await choose(term, ["Demand to speak to whoever built it.", "Tell them about Falken."]);
+    state.suspicion = Math.max(0, Math.min(4, state.suspicion + (c2 === 0 ? 1 : -1)));
+    saveState(state);
     term.print("");
     term.print(
       'You say the name. McKittrick goes pale. "Falken is dead. Seven years."',
@@ -495,8 +590,97 @@ const scenes = {
       "aside"
     );
     term.print("");
+    term.print(
+      "They are not letting you go. McKittrick orders you held in the infirmary until the FBI arrives.",
+      "aside"
+    );
+    term.print("");
+    await term.pause(800);
+    return "escape";
+  },
+
+  // The film's trick: the infirmary's electronic lock, and a door code
+  // hiding in something you already know.
+  async escape(ctx) {
+    const { term, state } = ctx;
+    term.print("");
+    await term.type("NORAD — INFIRMARY, ELECTRONIC LOCK", { cps: 30 });
+    term.print("");
+    term.print(
+      "A keypad guards the door. Taped beside it, a maintenance card: 'CODE = THE OLD MAN'S LAST LOGIN, MMDD.'",
+      "aside"
+    );
+    term.print(
+      "The old man. Joshua asked you about an account removed on a date you've seen twice now.",
+      "aside"
+    );
+    term.print("");
+    let tries = 0;
+    while (true) {
+      const t = norm(await term.read("KEYPAD: "));
+      if (await handleGlobalCommand(term, t, state)) continue;
+      if (!t) continue;
+      const digits = t.replace(/\D/g, "");
+      if (digits === "0623" || digits === "623" || /june 23/.test(t)) {
+        if (typeof Sound !== "undefined") Sound.beep();
+        await term.type("LOCK RELEASED.", { cps: 40, cls: "dim" });
+        term.print("");
+        term.print(
+          "The door clicks open. You fall in behind a tour group in matching windbreakers and walk out of the most secure facility on Earth.",
+          "aside"
+        );
+        break;
+      }
+      tries += 1;
+      if (typeof Sound !== "undefined") Sound.klaxon();
+      caption(term, "ERROR BUZZER");
+      await term.type("INCORRECT CODE.", { cps: 40, cls: "dim" });
+      if (tries === 1) {
+        term.print("Month and day. Four digits.", "aside");
+      } else if (tries === 2) {
+        term.print("6/23/73. The account Joshua asked you about. MMDD.", "aside");
+      } else {
+        term.print(
+          "A medic badges the door open from the other side, and you slip out behind him. Less elegant. The guards will remember your face.",
+          "aside"
+        );
+        state.suspicion = Math.min(4, state.suspicion + 1);
+        saveState(state);
+        break;
+      }
+    }
+    term.print("");
     await term.pause(800);
     return "falken";
+  },
+
+  // Post-completion jump menu.
+  async menu(ctx) {
+    const { term, state } = ctx;
+    term.print("");
+    await term.type("MENU — JUMP TO:");
+    const pick = await choose(term, [
+      "Full game from the title",
+      "Connect to WOPR",
+      "Global Thermonuclear War",
+      "DEFCON 1 (the climax)",
+    ]);
+    term.print("");
+    if (pick === 0) {
+      ctx.dialed = false;
+      return "wardial";
+    }
+    if (pick === 1) {
+      ctx.skipFraming = true;
+      return "dial";
+    }
+    if (pick === 2) {
+      ctx.skipFraming = true;
+      ctx.autoGTW = true;
+      return "dial";
+    }
+    state.suspicion = state.suspicion == null ? 2 : state.suspicion;
+    return "defcon1";
   },
 
   async falken(ctx) {
@@ -537,7 +721,11 @@ const scenes = {
     term.clear();
     state.defcon = 1;
     saveState(state);
-    if (typeof Sound !== "undefined") Sound.klaxon();
+    if (typeof Sound !== "undefined") {
+      Sound.klaxon();
+      Sound.startMusic();
+    }
+    caption(term, "KLAXON. LOW PULSING MUSIC.");
     await term.type("CHEYENNE MOUNTAIN — DEFCON 1", { cps: 30 });
     term.print("");
     term.print(
@@ -555,7 +743,16 @@ const scenes = {
     term.print("Type what you want the machine to do.", "aside");
     term.print("");
 
-    const budget = CrisisCore.CLIMAX_BUDGET;
+    // How the interrogation went decides how much rope you get, and the
+    // machine cracks the launch code on the status bar while you work.
+    const budget = CrisisCore.budgetFor(state.suspicion);
+    if (budget <= 5) {
+      term.print(
+        "(They don't trust you. The machine is further along than it should be.)",
+        "aside"
+      );
+      term.print("");
+    }
     const nudges = [
       'FALKEN: "Don\'t feed it codes. Teach it."',
       'DAVID: "Tic-tac-toe. Tell it to play ITSELF."',
@@ -597,6 +794,7 @@ const scenes = {
       await badEnding(term, state);
       term.clearFlash();
       term.print("");
+      if (typeof Sound !== "undefined") Sound.startMusic();
       await term.type("SIMULATION RESET. THE MACHINE BEGINS AGAIN.", { cps: 30 });
       term.print('FALKEN: "Again. And this time, listen to the boy. Tic-tac-toe."', "aside");
       term.print("");
@@ -656,7 +854,10 @@ function setTimer(term, budget, ticks) {
   const secs = remaining * 47;
   const mm = String(Math.floor(secs / 60)).padStart(2, "0");
   const ss = String(secs % 60).padStart(2, "0");
-  term.setStatus({ defcon: 1, right: "T-MINUS " + mm + ":" + ss });
+  term.setStatus({
+    defcon: 1,
+    right: "CODE " + CrisisCore.revealedCode(ticks, budget) + "   T-MINUS " + mm + ":" + ss,
+  });
 }
 
 // The big board saturates as WOPR runs every plan at once.
@@ -712,6 +913,7 @@ async function scenarioFlood(term) {
 }
 
 async function goodEnding(term, state) {
+  if (typeof Sound !== "undefined") Sound.stopMusic();
   await selfPlaySpectacle(term);
   await scenarioFlood(term);
   term.print("");
@@ -734,6 +936,9 @@ async function goodEnding(term, state) {
   term.print("");
   term.clearStatus();
   state.ending = "good";
+  if (!(state.endingsSeen || []).includes("good")) {
+    state.endingsSeen = [...(state.endingsSeen || []), "good"];
+  }
   state.crisisResolved = true;
   state.defcon = 5;
   saveState(state);
@@ -746,6 +951,7 @@ async function goodEnding(term, state) {
 }
 
 async function badEnding(term, state) {
+  if (typeof Sound !== "undefined") Sound.stopMusic();
   term.print("");
   for (const line of CrisisCore.BAD_ENDING) {
     if (line === "") {
@@ -760,6 +966,9 @@ async function badEnding(term, state) {
   await term.whiteout();
   await term.pause(2600);
   state.ending = "bad";
+  if (!(state.endingsSeen || []).includes("bad")) {
+    state.endingsSeen = [...(state.endingsSeen || []), "bad"];
+  }
   saveState(state);
 }
 
@@ -783,6 +992,9 @@ async function secretEnding(term, state) {
     "aside"
   );
   state.ending = "secret";
+  if (!(state.endingsSeen || []).includes("secret")) {
+    state.endingsSeen = [...(state.endingsSeen || []), "secret"];
+  }
   state.crisisResolved = true;
   saveState(state);
   await term.pause(900);

@@ -5,7 +5,15 @@
  * Requires parser.js (norm, matchGame, isYes, isNo, GTW).
  */
 
-const PLAYABLE = ["TIC-TAC-TOE", GTW];
+const PLAYABLE = [
+  "TIC-TAC-TOE",
+  "CHESS",
+  "CHECKERS",
+  "BLACK JACK",
+  "POKER",
+  "FALKEN'S MAZE",
+  GTW,
+];
 
 const sayOp = (text) => ({ kind: "say", text });
 const asideOp = (text) => ({ kind: "aside", text });
@@ -106,7 +114,7 @@ class Joshua {
       if (isYes(t)) {
         this.pending = null;
         this.wantedGame = null;
-        return this._chessStub();
+        return [sayOp("EXCELLENT."), gameOp("CHESS")];
       }
     }
     if (this.pending === "play") {
@@ -185,23 +193,10 @@ class Joshua {
     }
     this.pending = null;
     this.wantedGame = null;
-    if (game === "TIC-TAC-TOE") {
-      return [sayOp("FINE."), gameOp("TIC-TAC-TOE")];
-    }
-    if (game === "CHESS") {
-      return this._chessStub();
+    if (PLAYABLE.includes(game)) {
+      return [sayOp("FINE."), gameOp(game)];
     }
     return this._stub(game);
-  }
-
-  _chessStub() {
-    this.pending = "play";
-    return [
-      sayOp("CHESS IS MY FAVORITE. UNFORTUNATELY THE CHESS MODULE IS NOT INSTALLED."),
-      ...this._metaAside(),
-      blankOp(),
-      sayOp("PERHAPS TIC-TAC-TOE. SHALL WE PLAY A DIFFERENT GAME?"),
-    ];
   }
 
   _stub(game) {
@@ -218,6 +213,6 @@ class Joshua {
   _metaAside() {
     if (this.metaAsideShown) return [];
     this.metaAsideShown = true;
-    return [asideOp("[ More games install in later milestones. Tic-tac-toe and Global Thermonuclear War are live. ]")];
+    return [asideOp("[ Seven games are live; the rest of the catalog is flavor. Type LIST GAMES. ]")];
   }
 }
