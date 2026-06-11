@@ -73,9 +73,47 @@ function hush() {
   if (typeof Sound !== "undefined") Sound.shutUp();
 }
 
+// A spoiler-light briefing for players who never saw the film.
+const STORY_LINES = [
+  "THE YEAR IS 1983. THE COLD WAR IS ON.",
+  "",
+  "Two superpowers, the United States and the Soviet Union, point thousands of nuclear missiles at each other. Neither dares fire: destroying the enemy means being destroyed yourself. The military calls the alert scale DEFCON: 5 means peace, 1 means nuclear war is imminent.",
+  "",
+  "There is no internet yet. Computers talk over phone lines through modems, and a 'war dialer' is a program that calls thousands of numbers overnight, listening for another computer to answer.",
+  "",
+  "You are David Lightman: a Seattle teenager, sharp, bored, and very good with that modem. You want one thing: to play an unreleased video game from a company called Protovision before anyone else. So you start dialing every number in their town.",
+  "",
+  "What you find instead does not have a name on it. It plays games. It learns. And it does not always know the difference between a game and the real thing.",
+  "",
+  "USEFUL THINGS TO KNOW:",
+  "- Type commands and press Enter. When stuck, read the amber notes: they are your own thoughts, and they nudge you forward.",
+  "- RESEARCH <topic> digs into anything that looks like a name or a clue.",
+  "- Nothing you type can break the game. Curiosity is the whole point.",
+  "- Based on the 1983 film WarGames. No spoilers here: what the machine learns at the end, you will teach it.",
+];
+
+async function showStory(term) {
+  term.print("");
+  for (const line of STORY_LINES) {
+    if (!line) {
+      term.print("");
+    } else if (line === line.toUpperCase()) {
+      await term.type(line, { cps: 60 });
+    } else {
+      term.print(line, "aside");
+      await term.pause(150);
+    }
+  }
+  term.print("");
+}
+
 // SOUND, VOICE, MODE, FAST, CAPTIONS, and STATS work at any prompt.
 // Returns true if it handled the input. `state` is optional (STATS only).
 async function handleGlobalCommand(term, t, state) {
+  if (t === "story" || t === "about" || t === "briefing" || t === "intro") {
+    await showStory(term);
+    return true;
+  }
   if (t === "captions on") {
     setCaptions(true);
     await term.type("CAPTIONS ON.");
@@ -331,6 +369,7 @@ const scenes = {
     );
     term.print("");
     term.print("Type SCAN to start war dialing. Type SKIP to jump straight to the system you eventually find.", "aside");
+    term.print("Never seen the film? Type STORY for a one-minute briefing. No spoilers.", "aside");
     term.print("Sound and Joshua's voice are on (SOUND OFF / VOICE OFF to silence). Type FAST to speed up text.", "aside");
     term.print("");
 
@@ -611,6 +650,10 @@ const scenes = {
     await term.pause(800);
     term.setStatus({ defcon: 3, right: "NORAD WAR ROOM" });
     state.defcon = 3;
+    term.print(
+      "(The bar above is the DEFCON scale: America's alert level. 5 is peacetime. 1 is nuclear war. It is not supposed to move.)",
+      "aside"
+    );
     await term.type("DEFCON 3. BOMBERS TO POSITIVE CONTROL.", { cps: 26 });
     await term.pause(700);
     term.print(
