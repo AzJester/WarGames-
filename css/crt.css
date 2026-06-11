@@ -191,6 +191,30 @@ html, body {
   opacity: 0.01;
 }
 
+/* On touch devices the input becomes a visible bar, so tapping it opens
+ * the keyboard reliably and typed text is always in view. */
+@media (pointer: coarse) {
+  #kbd {
+    width: calc(100% - 16px);
+    height: 44px;
+    left: 8px;
+    bottom: 8px;
+    opacity: 1;
+    z-index: 10;
+    padding: 0 12px;
+    color: var(--phosphor);
+    background: rgba(0, 12, 6, 0.92);
+    border: 1px solid rgba(58, 255, 110, 0.5);
+    border-radius: 6px;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    caret-color: var(--phosphor);
+  }
+  #screen {
+    padding-bottom: 72px;
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

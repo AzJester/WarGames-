@@ -65,3 +65,27 @@ async function runScenes(scenes, start, ctx) {
     name = await scenes[name](ctx);
   }
 }
+
+// Difficulty: easy | normal | hard. Persisted; read by the game AIs and
+// the GTW ABM screens.
+function getDifficulty() {
+  try {
+    if (typeof localStorage !== "undefined") {
+      const d = localStorage.getItem("wargames-difficulty");
+      if (d === "easy" || d === "hard") return d;
+    }
+  } catch (e) {
+    /* storage blocked */
+  }
+  return "normal";
+}
+
+function setDifficulty(d) {
+  const v = d === "easy" || d === "hard" ? d : "normal";
+  try {
+    if (typeof localStorage !== "undefined") localStorage.setItem("wargames-difficulty", v);
+  } catch (e) {
+    /* storage blocked */
+  }
+  return v;
+}
