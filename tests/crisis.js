@@ -95,4 +95,42 @@ check("content blocks are present and the famous line is intact", () => {
   assert.ok(CrisisCore.SECRET_ENDING.includes("THE ONLY WINNING MOVE IS NOT TO PLAY."));
 });
 
+
+check("the countdown formats as mm:ss and never goes negative", () => {
+  assert.strictEqual(CrisisCore.clock(0), "00:00");
+  assert.strictEqual(CrisisCore.clock(47), "00:47");
+  assert.strictEqual(CrisisCore.clock(376), "06:16");
+  assert.strictEqual(CrisisCore.clock(-5), "00:00");
+});
+
+check("the real-time clock stays inside the current turn's band", () => {
+  // 6 turns left: counts down from 6x47 and holds one second above 5x47,
+  // so waiting can never cost a turn.
+  const band = CrisisCore.clockBand(8, 2);
+  assert.strictEqual(band.top, 6 * 47);
+  assert.strictEqual(band.floor, 5 * 47 + 1);
+  assert.ok(band.floor > CrisisCore.clockBand(8, 3).top - 1);
+  const last = CrisisCore.clockBand(4, 3);
+  assert.strictEqual(last.top, 47);
+  assert.strictEqual(last.floor, 1);
+  const out = CrisisCore.clockBand(4, 9);
+  assert.deepStrictEqual(out, { top: 0, floor: 0 });
+});
+
+check("every ending has a name, a description, and a hint", () => {
+  assert.deepStrictEqual(CrisisCore.ENDING_ORDER.slice().sort(), ["bad", "good", "secret"]);
+  for (const id of CrisisCore.ENDING_ORDER) {
+    const e = CrisisCore.ENDINGS[id];
+    assert.ok(e.name && e.found && e.hint, id);
+    assert.strictEqual(CrisisCore.endingName(id), e.name);
+  }
+  assert.strictEqual(CrisisCore.endingName("nonsense"), "NONSENSE");
+  // hints must not give the other endings' names away
+  for (const id of CrisisCore.ENDING_ORDER) {
+    for (const other of CrisisCore.ENDING_ORDER) {
+      assert.ok(!CrisisCore.ENDINGS[id].hint.includes(CrisisCore.ENDINGS[other].name));
+    }
+  }
+});
+
 console.log(`\nALL TESTS PASSED (${passed})`);

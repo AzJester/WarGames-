@@ -330,7 +330,13 @@ const GTWCore = (() => {
     return out.join("\n");
   }
 
+  // How many `width`-wide columns fit on a line `cols` characters long.
+  function perRowFor(cols, width = 22, most = 3) {
+    return Math.max(1, Math.min(most, Math.floor(cols / width)));
+  }
+
   return {
+    perRowFor,
     MAP,
     MAP_W,
     MAP_H,
@@ -371,6 +377,8 @@ function gtwInterceptChances() {
 
 async function runVolley(term, headerLines, missiles) {
   const header = ["GLOBAL THERMONUCLEAR WAR", ...headerLines, ""];
+  // A skip issued during the text before this must not swallow the board.
+  if (typeof term.resetSkip === "function") term.resetSkip();
   if (typeof Modern !== "undefined" && Modern.isModern()) {
     if (typeof Sound !== "undefined") Sound.startAmbient();
     const rendered = Modern.renderVolley(term, header.filter(Boolean), missiles);
@@ -401,11 +409,15 @@ async function refuseLaunch(term, state) {
     if (typeof Sound !== "undefined") Sound.speak(t);
   };
   state.refusedLaunch = true;
+  const restore = term.pushHelp(
+    "Joshua wants to know why you will not launch. Answer in your own words. There is no wrong way to say it, but he is listening for a reason."
+  );
   speak("A CURIOUS CHOICE, PROFESSOR.");
   await term.type("A CURIOUS CHOICE, PROFESSOR.");
   speak("WHY WILL YOU NOT PLAY?");
   await term.type("WHY WILL YOU NOT PLAY?");
   const why = await term.read("> ");
+  restore();
   if (typeof Sound !== "undefined") Sound.shutUp();
   if (CrisisCore.isNoWinSentiment(why)) {
     return { completed: false, secret: true };
@@ -415,23 +427,59 @@ async function refuseLaunch(term, state) {
   return { completed: false };
 }
 
-// Free-text target selection against one side's database. Returns the
-// chosen list, or null if the player aborted.
+// Target selection against one side's database: click cities on the
+// targeting map, use the buttons, or type names. Returns the chosen list,
+// or null if the player aborted.
 async function selectTargets(term, state, enemyTargets, attackerIsUS, label) {
+  const MAX_TARGETS = 6;
+  const chosen = [];
+  const restore = term.pushHelp(
+    "Pick up to six cities: click them on the map, use the buttons, or type a name. Naming a country picks four at random. REMOVE <city> takes one back. LAUNCH commits, ABORT backs out."
+  );
   term.print("");
   await term.type("AWAITING " + label + " COMMAND");
   term.print("");
   await term.type("PLEASE LIST PRIMARY TARGETS BY CITY AND/OR COUNTRY.");
-  await term.type("TYPE LIST FOR THE TARGET DATABASE. TYPE LAUNCH WHEN READY.");
+  const map =
+    typeof Modern !== "undefined" && Modern.isModern() && typeof Modern.targetMap === "function"
+      ? Modern.targetMap(term, {
+          targets: enemyTargets,
+          title: "TARGET DATABASE: " + (attackerIsUS ? "SOVIET UNION" : "UNITED STATES"),
+          max: MAX_TARGETS,
+          onPick: (c) => term.submitLine((chosen.includes(c) ? "REMOVE " : "") + c.name),
+        })
+      : null;
+  if (map) {
+    await term.type("SELECT UP TO SIX ON THE MAP, OR TYPE A CITY. TYPE LAUNCH WHEN READY.");
+  } else {
+    await term.type("TYPE LIST FOR THE TARGET DATABASE. TYPE LAUNCH WHEN READY.");
+  }
   term.print("");
-  const MAX_TARGETS = 6;
-  const chosen = [];
+  const finish = (result) => {
+    if (map) map.close();
+    restore();
+    return result;
+  };
+  const refresh = () => {
+    if (map) map.update(chosen);
+  };
+  const chips = () => {
+    const out = [];
+    if (chosen.length) out.push({ label: "LAUNCH (" + chosen.length + ")", value: "LAUNCH", cls: "go" });
+    for (const c of enemyTargets) {
+      const on = chosen.includes(c);
+      out.push({ label: c.name, value: (on ? "REMOVE " : "") + c.name, on });
+    }
+    out.push("ABORT");
+    return out;
+  };
   while (true) {
-    const t = norm(await term.read("TARGET: "));
+    const t = norm(await term.read("TARGET: ", { choices: chips }));
     if (!t) continue;
     if (t === "list" || t === "list targets") {
+      const perRow = GTWCore.perRowFor(typeof term.cols === "function" ? term.cols() : 66);
       term.print("");
-      term.print(GTWCore.columns(enemyTargets.map((c) => c.name)), "board");
+      term.print(GTWCore.columns(enemyTargets.map((c) => c.name), perRow), "cols");
       term.print("");
       continue;
     }
@@ -440,10 +488,28 @@ async function selectTargets(term, state, enemyTargets, attackerIsUS, label) {
         await term.type("AT LEAST ONE TARGET IS REQUIRED.");
         continue;
       }
-      return chosen;
+      return finish(chosen);
     }
     if (/^(quit|exit|abort|cancel)$/.test(t)) {
-      return null;
+      return finish(null);
+    }
+    if (t === "clear" || t === "clear all" || t === "reset") {
+      chosen.length = 0;
+      refresh();
+      await term.type("TARGET LIST CLEARED.");
+      continue;
+    }
+    const drop = t.match(/^(?:remove|delete|drop|cancel|untarget) (.+)$/);
+    if (drop) {
+      const hit = GTWCore.findTarget(drop[1], chosen);
+      if (!hit) {
+        await term.type("THAT TARGET IS NOT DESIGNATED.");
+        continue;
+      }
+      chosen.splice(chosen.indexOf(hit), 1);
+      refresh();
+      await term.type(`TARGET REMOVED: ${hit.name} (${chosen.length}/${MAX_TARGETS})`);
+      continue;
     }
     const country = GTWCore.pickCountry(t);
     if (country) {
@@ -455,28 +521,34 @@ async function selectTargets(term, state, enemyTargets, attackerIsUS, label) {
         if (chosen.length >= MAX_TARGETS) break;
         if (chosen.includes(c)) continue;
         chosen.push(c);
+        refresh();
         await term.type(`TARGET SELECTED: ${c.name} (${chosen.length}/${MAX_TARGETS})`);
       }
       if (chosen.length >= MAX_TARGETS) {
         await term.type("TARGET LIST FULL.");
-        return chosen;
+        return finish(chosen);
       }
       continue;
     }
     const hit = GTWCore.findTarget(t, enemyTargets);
     if (!hit) {
-      await term.type("TARGET NOT IN STRATEGIC DATABASE. TYPE LIST FOR AVAILABLE TARGETS.");
+      await term.type(
+        map
+          ? "TARGET NOT IN STRATEGIC DATABASE. PICK A CITY FROM THE MAP."
+          : "TARGET NOT IN STRATEGIC DATABASE. TYPE LIST FOR AVAILABLE TARGETS."
+      );
       continue;
     }
     if (chosen.includes(hit)) {
-      await term.type("TARGET ALREADY DESIGNATED.");
+      await term.type("TARGET ALREADY DESIGNATED. TYPE REMOVE " + hit.name + " TO TAKE IT BACK.");
       continue;
     }
     chosen.push(hit);
+    refresh();
     await term.type(`TARGET SELECTED: ${hit.name} (${chosen.length}/${MAX_TARGETS})`);
     if (chosen.length >= MAX_TARGETS) {
       await term.type("TARGET LIST FULL.");
-      return chosen;
+      return finish(chosen);
     }
   }
 }
@@ -531,6 +603,17 @@ async function playGTWHotseat(term, state, p1IsUS) {
 }
 
 async function playGTW(term, state) {
+  const restore = term.pushHelp(
+    "Pick a side: 1 for the United States, 2 for the Soviet Union, 3 for two players at one keyboard."
+  );
+  try {
+    return await runGTW(term, state);
+  } finally {
+    restore();
+  }
+}
+
+async function runGTW(term, state) {
   term.print("");
   await term.type("WHICH SIDE DO YOU WANT?");
   term.print("");
@@ -541,7 +624,16 @@ async function playGTW(term, state) {
   let side = null;
   let hotseat = false;
   while (!side) {
-    const v = norm(await term.read("PLEASE CHOOSE ONE: "));
+    const v = norm(
+      await term.read("PLEASE CHOOSE ONE: ", {
+        inputmode: "numeric",
+        choices: [
+          { label: "1. UNITED STATES", value: "1" },
+          { label: "2. SOVIET UNION", value: "2" },
+          { label: "3. TWO PLAYERS", value: "3" },
+        ],
+      })
+    );
     if (!v) continue;
     if (v === "3" || /two player|hotseat|both/.test(v)) {
       hotseat = true;
@@ -565,7 +657,12 @@ async function playGTW(term, state) {
   }
 
   term.print("");
-  const confirm = norm(await term.read("CONFIRM FIRST STRIKE COMMIT (YES/NO): "));
+  term.pushHelp(
+    "YES launches the first strike and the simulation runs to the end. NO stands down, and Joshua will ask you why."
+  );
+  const confirm = norm(
+    await term.read("CONFIRM FIRST STRIKE COMMIT (YES/NO): ", { choices: [{ label: "YES", cls: "go" }, "NO"] })
+  );
   if (!isYes(confirm)) {
     await term.type("COMMIT ABORTED.");
     return refuseLaunch(term, state);

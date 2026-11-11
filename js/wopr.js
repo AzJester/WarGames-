@@ -21,9 +21,11 @@ const blankOp = () => ({ kind: "blank" });
 const gameOp = (game) => ({ kind: "game", game });
 
 class Joshua {
-  constructor(state) {
+  // `fresh` replays the full opening for a returning player who chose to
+  // start the story over.
+  constructor(state, { fresh = false } = {}) {
     this.state = state || null;
-    this.returning = !!(state && state.gtwRuns > 0);
+    this.returning = !fresh && !!(state && state.gtwRuns > 0);
     this.beat = this.returning ? "free" : "opening1";
     // question on the table: 'play' | 'chess' | 'gtwagain'
     this.pending = this.returning ? "gtwagain" : null;
@@ -47,7 +49,10 @@ class Joshua {
       ];
     }
     if (t === "help") {
-      return [sayOp("COMMANDS: HELP, LIST GAMES, LOGOFF. OR NAME A GAME FROM THE LIST.")];
+      return [
+        sayOp("COMMANDS: HELP, LIST GAMES, LOGOFF. OR NAME A GAME FROM THE LIST."),
+        asideOp("[ OPTIONS shows settings and every other command. ]"),
+      ];
     }
     if (t.startsWith("help ")) {
       return [sayOp(t.toUpperCase() + " NOT AVAILABLE.")];

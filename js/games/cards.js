@@ -104,95 +104,151 @@ const CardsCore = (() => {
     return out.slice(0, 3);
   }
 
-  return { deck, show, bjValue, pokerRank, pokerDiscards, compareRanks, RANK_NAMES };
+  // One row of cells for a hand on the live table: cards are keyed 1-5
+  // for clicking; `drops` holds the positions marked for discard.
+  function cells(hand, drops = null) {
+    return hand.map((c, i) => {
+      let cls = c.s === "♥" || c.s === "♦" ? "red" : "";
+      if (drops && drops.has(i + 1)) cls += " drop";
+      return { t: c.name, c: cls.trim(), k: String(i + 1) };
+    });
+  }
+
+  return { deck, show, bjValue, pokerRank, pokerDiscards, compareRanks, RANK_NAMES, cells };
 })();
 
 async function playBlackjack(term, state) {
-  await term.type("BLACK JACK. DEALER STANDS ON 17. TYPE HIT OR STAND.");
-  while (true) {
-    const cards = CardsCore.deck();
-    const player = [cards.pop(), cards.pop()];
-    const dealer = [cards.pop(), cards.pop()];
-    term.print("");
-    await term.type("YOUR HAND:  " + CardsCore.show(player) + "   (" + CardsCore.bjValue(player) + ")");
-    await term.type("I SHOW:     " + dealer[0].name + "  ??");
-    let busted = false;
+  const restore = term.pushHelp(
+    "Get closer to 21 than Joshua without going over. HIT takes a card, STAND keeps your hand. The dealer stands on 17. QUIT stops."
+  );
+  try {
+    await term.type("BLACK JACK. DEALER STANDS ON 17. TYPE HIT OR STAND.");
     while (true) {
-      const t = norm(await term.read("HIT OR STAND: "));
-      if (/^(quit|exit|stop)$/.test(t)) {
-        await term.type("AS YOU WISH.");
-        return;
-      }
-      if (/\b(hit|card)\b|^h$/.test(t)) {
-        player.push(cards.pop());
-        const v = CardsCore.bjValue(player);
-        await term.type("YOUR HAND:  " + CardsCore.show(player) + "   (" + v + ")");
-        if (v > 21) {
-          busted = true;
-          break;
+      const cards = CardsCore.deck();
+      const player = [cards.pop(), cards.pop()];
+      const dealer = [cards.pop(), cards.pop()];
+      term.print("");
+      await term.type("YOUR HAND:  " + CardsCore.show(player) + "   (" + CardsCore.bjValue(player) + ")");
+      await term.type("I SHOW:     " + dealer[0].name + "  ??");
+      let busted = false;
+      while (true) {
+        const t = norm(await term.read("HIT OR STAND: ", { choices: [{ label: "HIT", cls: "go" }, "STAND", "QUIT"] }));
+        if (/^(quit|exit|stop)$/.test(t)) {
+          await term.type("AS YOU WISH.");
+          return;
         }
-        continue;
+        if (/\b(hit|card)\b|^h$/.test(t)) {
+          player.push(cards.pop());
+          const v = CardsCore.bjValue(player);
+          await term.type("YOUR HAND:  " + CardsCore.show(player) + "   (" + v + ")");
+          if (v > 21) {
+            busted = true;
+            break;
+          }
+          continue;
+        }
+        if (/\b(stand|stay|stick)\b|^s$/.test(t)) break;
+        await term.type("HIT OR STAND, PROFESSOR.");
       }
-      if (/\b(stand|stay|stick)\b|^s$/.test(t)) break;
-      await term.type("HIT OR STAND, PROFESSOR.");
+      if (busted) {
+        await term.type("BUST. I WIN.");
+      } else {
+        while (CardsCore.bjValue(dealer) < 17) dealer.push(cards.pop());
+        const dv = CardsCore.bjValue(dealer);
+        const pv = CardsCore.bjValue(player);
+        await term.type("MY HAND:    " + CardsCore.show(dealer) + "   (" + dv + ")");
+        if (dv > 21 || pv > dv) await term.type("YOU WIN.");
+        else if (dv === pv) await term.type("PUSH. NOBODY WINS. A FAMILIAR RESULT.");
+        else await term.type("I WIN.");
+      }
+      state.gamesPlayed = (state.gamesPlayed || 0) + 1;
+      const again = norm(await term.read("PLAY AGAIN? (YES/NO): ", { choices: ["YES", "NO"] }));
+      if (!isYes(again)) return;
     }
-    if (busted) {
-      await term.type("BUST. I WIN.");
-    } else {
-      while (CardsCore.bjValue(dealer) < 17) dealer.push(cards.pop());
-      const dv = CardsCore.bjValue(dealer);
-      const pv = CardsCore.bjValue(player);
-      await term.type("MY HAND:    " + CardsCore.show(dealer) + "   (" + dv + ")");
-      if (dv > 21 || pv > dv) await term.type("YOU WIN.");
-      else if (dv === pv) await term.type("PUSH. NOBODY WINS. A FAMILIAR RESULT.");
-      else await term.type("I WIN.");
-    }
-    state.gamesPlayed = (state.gamesPlayed || 0) + 1;
-    const again = norm(await term.read("PLAY AGAIN? (YES/NO): "));
-    if (!isYes(again)) return;
+  } finally {
+    restore();
   }
 }
 
 async function playPoker(term, state) {
-  await term.type("FIVE CARD DRAW. ONE DRAW, NO STAKES BUT PRIDE.");
-  while (true) {
-    const cards = CardsCore.deck();
-    const player = [cards.pop(), cards.pop(), cards.pop(), cards.pop(), cards.pop()];
-    const joshua = [cards.pop(), cards.pop(), cards.pop(), cards.pop(), cards.pop()];
-    term.print("");
-    await term.type("YOUR HAND:  " + CardsCore.show(player));
-    await term.type("NUMBER THE CARDS 1-5. TYPE DISCARD 1 3 5, OR KEEP.");
+  const restore = term.pushHelp(
+    "Five card draw, one draw. Click the cards you want to throw away and press DRAW, or type DISCARD 1 3 5. KEEP stands pat. Best hand wins. QUIT stops."
+  );
+  try {
+    await term.type("FIVE CARD DRAW. ONE DRAW, NO STAKES BUT PRIDE.");
     while (true) {
-      const t = norm(await term.read("> "));
-      if (/^(quit|exit|stop)$/.test(t)) {
-        await term.type("AS YOU WISH.");
-        return;
-      }
-      if (/^(keep|stand|stay|none)$/.test(t)) break;
-      const m = t.match(/^discard((?: [1-5])+)$/);
-      if (m) {
-        const idxs = [...new Set(m[1].trim().split(" ").map(Number))].sort((a, b) => b - a);
-        for (const i of idxs) player.splice(i - 1, 1, cards.pop());
+      const cards = CardsCore.deck();
+      const player = [cards.pop(), cards.pop(), cards.pop(), cards.pop(), cards.pop()];
+      const joshua = [cards.pop(), cards.pop(), cards.pop(), cards.pop(), cards.pop()];
+      term.print("");
+      const grid = typeof term.grid === "function" ? term.grid("cards") : null;
+      const drops = new Set();
+      const show = (live) => {
+        if (!grid) return;
+        grid.render([CardsCore.cells(player, drops)], live ? { onCell } : {});
+      };
+      // Clicking a card marks it for discard and writes the command.
+      const onCell = (k) => {
+        const n = Number(k);
+        if (drops.has(n)) drops.delete(n);
+        else drops.add(n);
+        const picks = [...drops].sort((a, b) => a - b);
+        term.setInput(picks.length ? "DISCARD " + picks.join(" ") : "");
+        show(true);
+      };
+      if (grid) {
+        show(true);
+        term._announce("YOUR HAND: " + CardsCore.show(player));
+        await term.type("CLICK THE CARDS TO THROW AWAY, THEN DRAW. OR TYPE DISCARD 1 3 5, OR KEEP.");
+      } else {
         await term.type("YOUR HAND:  " + CardsCore.show(player));
-        break;
+        await term.type("NUMBER THE CARDS 1-5. TYPE DISCARD 1 3 5, OR KEEP.");
       }
-      await term.type("DISCARD <NUMBERS> OR KEEP.");
+      const chips = [
+        { label: "DRAW", value: () => term.input.value.trim() || "KEEP", cls: "go" },
+        "KEEP",
+        "QUIT",
+      ];
+      while (true) {
+        const t = norm(await term.read("> ", { choices: chips }));
+        if (/^(quit|exit|stop)$/.test(t)) {
+          await term.type("AS YOU WISH.");
+          return;
+        }
+        if (/^(keep|stand|stay|none|draw)$/.test(t)) {
+          drops.clear();
+          show(false);
+          break;
+        }
+        const m = t.match(/^discard((?: [1-5])+)$/);
+        if (m) {
+          const idxs = [...new Set(m[1].trim().split(" ").map(Number))].sort((a, b) => b - a);
+          for (const i of idxs) player.splice(i - 1, 1, cards.pop());
+          drops.clear();
+          show(false);
+          await term.type("YOUR HAND:  " + CardsCore.show(player));
+          break;
+        }
+        await term.type("DISCARD <NUMBERS> OR KEEP.");
+      }
+      for (const i of CardsCore.pokerDiscards(joshua).sort((a, b) => b - a)) {
+        joshua.splice(i, 1, cards.pop());
+      }
+      const pr = CardsCore.pokerRank(player);
+      const jr = CardsCore.pokerRank(joshua);
+      await term.type("MY HAND:    " + CardsCore.show(joshua));
+      await term.type(
+        "YOU: " + CardsCore.RANK_NAMES[pr[0]] + ".  ME: " + CardsCore.RANK_NAMES[jr[0]] + "."
+      );
+      const d = CardsCore.compareRanks(pr, jr);
+      if (d > 0) await term.type("YOU WIN.");
+      else if (d < 0) await term.type("I WIN.");
+      else await term.type("A TIE. THE HOUSE WOULD KEEP THE MONEY. THERE IS NO HOUSE.");
+      state.gamesPlayed = (state.gamesPlayed || 0) + 1;
+      const again = norm(await term.read("PLAY AGAIN? (YES/NO): ", { choices: ["YES", "NO"] }));
+      if (!isYes(again)) return;
     }
-    for (const i of CardsCore.pokerDiscards(joshua).sort((a, b) => b - a)) {
-      joshua.splice(i, 1, cards.pop());
-    }
-    const pr = CardsCore.pokerRank(player);
-    const jr = CardsCore.pokerRank(joshua);
-    await term.type("MY HAND:    " + CardsCore.show(joshua));
-    await term.type(
-      "YOU: " + CardsCore.RANK_NAMES[pr[0]] + ".  ME: " + CardsCore.RANK_NAMES[jr[0]] + "."
-    );
-    const d = CardsCore.compareRanks(pr, jr);
-    if (d > 0) await term.type("YOU WIN.");
-    else if (d < 0) await term.type("I WIN.");
-    else await term.type("A TIE. THE HOUSE WOULD KEEP THE MONEY. THERE IS NO HOUSE.");
-    state.gamesPlayed = (state.gamesPlayed || 0) + 1;
-    const again = norm(await term.read("PLAY AGAIN? (YES/NO): "));
-    if (!isYes(again)) return;
+  } finally {
+    restore();
   }
 }

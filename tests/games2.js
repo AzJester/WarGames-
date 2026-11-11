@@ -205,4 +205,138 @@ check("the launch code reveals with the clock and completes at zero", () => {
   assert.ok(half.includes("•"));
 });
 
+
+check("the checkers example move in the instructions is legal", () => {
+  // The old instructions suggested B3 A4, which starts on an empty square.
+  const b = CheckersCore.initial();
+  const want = CheckersCore.parseMove("A3 B4");
+  const found = CheckersCore.moves(b, "o").some(
+    (m) => m.from.join() === want.from.join() && m.to.join() === want.to.join()
+  );
+  assert.ok(found);
+  assert.strictEqual(CheckersCore.moveText({ from: want.from, to: want.to }), "A3 B4");
+});
+
+check("the live checkers board keys only dark squares and marks kings", () => {
+  const b = CheckersCore.initial();
+  b[4][1] = "O";
+  const rows = CheckersCore.cells(b, { last: { from: [0, 5], to: [1, 4] }, sel: "c3" });
+  assert.strictEqual(rows.length, 9);
+  assert.strictEqual(rows[0][0].t, "8");
+  const sq = (key) => rows[8 - Number(key[1])][key.charCodeAt(0) - 96];
+  assert.strictEqual(sq("a1").k, "a1");
+  assert.strictEqual(sq("b1").k, null);
+  assert.ok(sq("b4").c.includes("man mine") && sq("b4").t === "K");
+  assert.ok(sq("b4").c.includes("last") && sq("a3").c.includes("last"));
+  assert.ok(sq("c3").c.includes("sel"));
+  assert.ok(sq("b8").c.includes("theirs"));
+  assert.ok(CheckersCore.ownsSquare(b, "c3", "o"));
+  assert.ok(!CheckersCore.ownsSquare(b, "b8", "o"));
+});
+
+check("chess reports check and filters moves that hang the king", () => {
+  const empty = () => Array.from({ length: 8 }, () => Array(8).fill(null));
+  const b = empty();
+  b[7][4] = "K"; // e1
+  b[0][4] = "r"; // e8 rook on the open file
+  b[0][0] = "k";
+  assert.ok(ChessCore.kingAttacked(b, true));
+  assert.ok(!ChessCore.kingAttacked(b, false));
+  const safe = ChessCore.safeMoves(b, true);
+  assert.ok(safe.length > 0);
+  for (const mv of safe) assert.notStrictEqual(mv.to[0], 4, "stepping along the file stays in check");
+  assert.ok(ChessCore.moves(b, true).length > safe.length);
+});
+
+check("chess recognizes checkmate and stalemate positions", () => {
+  const empty = () => Array.from({ length: 8 }, () => Array(8).fill(null));
+  // back-rank mate: king h1 boxed in by its own pawns, rook on the first rank
+  const mate = empty();
+  mate[7][7] = "K";
+  mate[6][5] = "P";
+  mate[6][6] = "P";
+  mate[6][7] = "P";
+  mate[7][0] = "r";
+  mate[0][0] = "k";
+  assert.ok(ChessCore.kingAttacked(mate, true));
+  assert.strictEqual(ChessCore.safeMoves(mate, true).length, 0);
+  // stalemate: king a1, enemy queen b3, nothing else can move
+  const stale = empty();
+  stale[7][0] = "K";
+  stale[5][1] = "q";
+  stale[0][7] = "k";
+  assert.ok(!ChessCore.kingAttacked(stale, true));
+  assert.strictEqual(ChessCore.safeMoves(stale, true).length, 0);
+});
+
+check("chess names moves and builds the live board", () => {
+  const b = ChessCore.initial();
+  const e4 = ChessCore.parseMove("e2 e4");
+  assert.strictEqual(ChessCore.moveText(e4), "E2 E4");
+  assert.strictEqual(ChessCore.coord(0, 7), "A1");
+  const rows = ChessCore.cells(ChessCore.apply(b, e4), { last: e4, sel: "g1" });
+  assert.strictEqual(rows.length, 9);
+  assert.deepStrictEqual(rows[8].map((c) => c.t).join(""), "ABCDEFGH");
+  const sq = (key) => rows[8 - Number(key[1])][key.charCodeAt(0) - 96];
+  assert.ok(sq("a1").c.includes("dark"), "a1 is a dark square");
+  assert.ok(sq("h1").c.includes("light"));
+  assert.ok(sq("e4").c.includes("mine") && sq("e4").c.includes("last") && sq("e4").t === "P");
+  assert.ok(sq("e2").c.includes("last") && sq("e2").t === "");
+  assert.ok(sq("e8").c.includes("theirs") && sq("e8").t === "K");
+  assert.ok(sq("g1").c.includes("sel"));
+  assert.ok(ChessCore.ownsSquare(b, "e2", true));
+  assert.ok(!ChessCore.ownsSquare(b, "e7", true));
+  assert.ok(!ChessCore.ownsSquare(b, "e4", true));
+});
+
+check("Joshua develops a piece instead of wandering with his king", () => {
+  // After 1. e4 every reply is equal on material; the positional
+  // tie-break must keep the king at home across many random seeds.
+  const b = ChessCore.apply(ChessCore.initial(), ChessCore.parseMove("e2 e4"));
+  for (let seed = 1; seed <= 25; seed++) {
+    const mv = ChessCore.bestMove(b, false, makeRng(seed));
+    const piece = b[mv.from[1]][mv.from[0]];
+    assert.notStrictEqual(piece, "k", "seed " + seed);
+  }
+  // and the nudges never outweigh material: every piece's bonus is under a pawn
+  assert.ok(Math.abs(ChessCore.positional(ChessCore.initial())) < 1e-9);
+});
+
+check("chess bestMove honors a restricted pool", () => {
+  const b = ChessCore.initial();
+  const pool = ChessCore.moves(b, false).filter((m) => m.from[0] === 0 && m.from[1] === 1);
+  for (let seed = 1; seed <= 5; seed++) {
+    const mv = ChessCore.bestMove(b, false, makeRng(seed), pool);
+    assert.ok(pool.includes(mv));
+  }
+});
+
+check("the live maze marks the player, the exit, walls, and the trail", () => {
+  const maze = MazeCore.generate(21, 11, makeRng(7));
+  const seen = new Set(["1,1"]);
+  const rows = MazeCore.cells(maze, 1, 1, seen);
+  assert.strictEqual(rows.length, 11);
+  assert.strictEqual(rows[0].length, 21);
+  assert.deepStrictEqual(rows[1][1], { t: "@", c: "me" });
+  assert.deepStrictEqual(rows[9][19], { t: "X", c: "exit" });
+  assert.ok(rows[0].every((c) => c.c === "wall"));
+  const moved = MazeCore.cells(maze, 1, 3, seen);
+  assert.strictEqual(moved[1][1].c, "trail");
+});
+
+check("poker cards are keyed 1-5 and show discards", () => {
+  const hand = [
+    { r: 14, s: "♥", name: "A♥" },
+    { r: 10, s: "♠", name: "10♠" },
+    { r: 2, s: "♦", name: "2♦" },
+    { r: 9, s: "♣", name: "9♣" },
+    { r: 5, s: "♠", name: "5♠" },
+  ];
+  const cells = CardsCore.cells(hand, new Set([3]));
+  assert.deepStrictEqual(cells.map((c) => c.k), ["1", "2", "3", "4", "5"]);
+  assert.strictEqual(cells[0].c, "red");
+  assert.strictEqual(cells[1].c, "");
+  assert.strictEqual(cells[2].c, "red drop");
+});
+
 console.log(`\nALL TESTS PASSED (${passed})`);

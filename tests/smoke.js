@@ -203,4 +203,19 @@ check("empty input produces no ops", () => {
   assert.deepStrictEqual(j.respond("   "), []);
 });
 
+
+check("a fresh run replays the full opening for a returning player", () => {
+  const state = { gtwRuns: 2, lastSide: "SOVIET UNION", defcon: 5 };
+  assert.ok(new Joshua(state).returning);
+  const j = new Joshua(state, { fresh: true });
+  assert.ok(!j.returning);
+  assert.strictEqual(j.beat, "opening1");
+  assert.strictEqual(texts(j.respond("hello"))[0], "HOW ARE YOU FEELING TODAY?");
+});
+
+check("Joshua's HELP points at the options panel", () => {
+  const ops = new Joshua().respond("help");
+  assert.ok(ops.some((o) => o.kind === "aside" && /OPTIONS/.test(o.text)));
+});
+
 console.log(`\nALL TESTS PASSED (${passed})`);

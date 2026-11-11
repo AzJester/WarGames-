@@ -118,6 +118,50 @@ const CrisisCore = (() => {
     "THE ONLY WINNING MOVE IS NOT TO PLAY.",
   ];
 
+  // The three endings: a display name, what the player did to earn it,
+  // and a nudge shown on the end card while it is still undiscovered.
+  const ENDING_ORDER = ["good", "bad", "secret"];
+  const ENDINGS = {
+    good: {
+      name: "THE ONLY WINNING MOVE",
+      found: "You taught the machine futility at DEFCON 1.",
+      hint: "Reach DEFCON 1 and teach the machine instead of fighting it.",
+    },
+    bad: {
+      name: "BIRDS AWAY",
+      found: "The clock ran out and the machine launched.",
+      hint: "What happens if nobody teaches the machine in time?",
+    },
+    secret: {
+      name: "THE QUIET ENDING",
+      found: "You refused to launch, and told Joshua why.",
+      hint: "There is a way to end this before the first missile flies.",
+    },
+  };
+
+  function endingName(id) {
+    return ENDINGS[id] ? ENDINGS[id].name : String(id || "?").toUpperCase();
+  }
+
+  // mm:ss for the countdown displays.
+  function clock(secs) {
+    const s = Math.max(0, Math.round(secs));
+    return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+  }
+
+  // The DEFCON 1 clock is turn-based underneath: each turn left is worth
+  // 47 seconds. Between inputs the display counts down in real time from
+  // the top of the current turn's band to one second above the next
+  // turn's, then holds, so waiting never costs a turn.
+  const TURN_SECONDS = 47;
+
+  function clockBand(budget, ticks) {
+    const remaining = Math.max(0, budget - ticks);
+    const top = remaining * TURN_SECONDS;
+    const floor = remaining > 0 ? (remaining - 1) * TURN_SECONDS + 1 : 0;
+    return { top, floor };
+  }
+
   return {
     CLIMAX_BUDGET,
     budgetFor,
@@ -130,5 +174,10 @@ const CrisisCore = (() => {
     CLOSING_LINES,
     BAD_ENDING,
     SECRET_ENDING,
+    ENDING_ORDER,
+    ENDINGS,
+    endingName,
+    clock,
+    clockBand,
   };
 })();
