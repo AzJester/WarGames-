@@ -94,12 +94,28 @@ const Modern = (() => {
     text: "#3aff6e",
   };
 
-  function makeCanvas(term, ratio) {
+  // A canvas sized to the text column and never taller than the screen
+  // can show, so the whole board is in view while it animates. `share`
+  // caps the height as a fraction of the screen (pinned maps leave room
+  // for the log under them).
+  function makeCanvas(term, ratio, { pinned = false, share = 1 } = {}) {
     if (typeof document === "undefined" || !term.canvasBlock) return null;
-    const canvas = term.canvasBlock();
+    const canvas = term.canvasBlock({ pinned });
     if (!canvas) return null;
-    const cssW = Math.min(900, Math.max(320, term.screen.clientWidth ? term.screen.clientWidth - 40 : 760));
-    const cssH = Math.round(cssW * ratio);
+    const screen = term.screen;
+    let inner = 760;
+    let roomH = 560;
+    if (screen && screen.clientWidth) {
+      const cs = window.getComputedStyle(screen);
+      inner = screen.clientWidth - parseFloat(cs.paddingLeft || 0) - parseFloat(cs.paddingRight || 0);
+      roomH = Math.max(pinned ? 110 : 150, screen.clientHeight * share - 28);
+    }
+    let cssW = Math.min(900, Math.max(240, Math.floor(inner)));
+    let cssH = Math.round(cssW * ratio);
+    if (cssH > roomH) {
+      cssH = Math.round(roomH);
+      cssW = Math.round(cssH / ratio);
+    }
     const dpr = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
     canvas.width = Math.round(cssW * dpr);
     canvas.height = Math.round(cssH * dpr);
@@ -108,8 +124,13 @@ const Modern = (() => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
     ctx.scale(dpr, dpr);
+    if (typeof term.settle === "function") term.settle();
     return { canvas, ctx, cssW, cssH };
   }
+
+  // Canvas text size that tracks the board's width.
+  const fontPx = (cssW) => Math.max(10, Math.min(16, Math.round(cssW / 56)));
+  const FACE = "'Glass TTY VT220', 'IBM VGA 8x16', monospace";
 
   function reducedMotion() {
     return (
@@ -119,6 +140,26 @@ const Modern = (() => {
     );
   }
 
+  // The board's counters, longest wording first. The renderer uses the
+  // first form that fits, so a phone-width board never clips T-MINUS.
+  function footerForms({ inbound, impacts, intercepted, clock }) {
+    const kills = intercepted > 0;
+    return [
+      `TRACKS INBOUND: ${inbound}   IMPACTS: ${impacts}` +
+        (kills ? `   INTERCEPTED: ${intercepted}` : "") +
+        `   T-MINUS ${clock}`,
+      `INBOUND: ${inbound}  IMPACTS: ${impacts}` + (kills ? `  KILLS: ${intercepted}` : "") + `  T-${clock}`,
+      `IN ${inbound}  HIT ${impacts}` + (kills ? `  KILL ${intercepted}` : "") + `  T-${clock}`,
+    ];
+  }
+
+  function fitFooter(ctx, forms, maxWidth) {
+    for (const f of forms) {
+      if (ctx.measureText(f).width <= maxWidth) return f;
+    }
+    return forms[forms.length - 1];
+  }
+
   // Render one volley. Returns false (sync) when canvas is unavailable.
   function renderVolley(term, headerLines, missiles) {
     const polar = view === "polar";
@@ -126,9 +167,11 @@ const Modern = (() => {
     if (!cv) return false;
     const { ctx, cssW, cssH } = cv;
 
-    const padX = 26;
-    const padTop = 16 + headerLines.length * 18;
-    const padBot = 34;
+    const fs = fontPx(cssW);
+    const lineH = Math.round(fs * 1.4);
+    const padX = Math.max(10, Math.round(cssW * 0.03));
+    const padTop = 12 + headerLines.length * lineH;
+    const padBot = lineH + 16;
     // Polar view keeps a square scale so the hemisphere stays a circle.
     const polarScale = Math.min(cssW - padX * 2, cssH - padTop - padBot);
     const polarOx = (cssW - polarScale) / 2;
@@ -352,18 +395,20 @@ const Modern = (() => {
       }
 
       ctx.fillStyle = COLORS.text;
-      ctx.font = "13px 'Glass TTY VT220', monospace";
+      ctx.font = fs + "px " + FACE;
       ctx.textAlign = "center";
       headerLines.forEach((h, i) => {
-        if (h) ctx.fillText(h, cssW / 2, 18 + i * 18);
+        if (h) ctx.fillText(h, cssW / 2, fs + 6 + i * lineH);
       });
       ctx.textAlign = "left";
       const secs = Math.max(0, Math.round((totalDur - 1.6 - now) * 4.7) * 10);
       const mm = String(Math.floor(secs / 60)).padStart(2, "0");
       const ss = String(secs % 60).padStart(2, "0");
-      let footer = `TRACKS INBOUND: ${inbound}   IMPACTS: ${impacts}`;
-      if (intercepted > 0) footer += `   INTERCEPTED: ${intercepted}`;
-      footer += `   T-MINUS ${mm}:${ss}`;
+      const footer = fitFooter(
+        ctx,
+        footerForms({ inbound, impacts, intercepted, clock: mm + ":" + ss }),
+        cssW - padX * 2
+      );
       ctx.fillText(footer, padX, cssH - 12);
     }
 
@@ -465,7 +510,7 @@ const Modern = (() => {
           drawBoard(cx, cy, finals[i], i === visible - 1 ? 1 : 0.45);
         }
         ctx.fillStyle = COLORS.text;
-        ctx.font = "14px 'Glass TTY VT220', monospace";
+        ctx.font = fontPx(cssW) + 1 + "px " + FACE;
         ctx.textAlign = "center";
         ctx.fillText(
           "GAME " + (shown + 1) + "    WINNER: NONE",
@@ -483,6 +528,273 @@ const Modern = (() => {
       }
       step();
     });
+  }
+
+  // ---- targeting map: pick first-strike targets on the board itself ----
+
+  // The lon/lat window that frames a set of targets, with a margin.
+  function regionFor(targets) {
+    let lon0 = Infinity;
+    let lon1 = -Infinity;
+    let lat0 = Infinity;
+    let lat1 = -Infinity;
+    for (const t of targets) {
+      lon0 = Math.min(lon0, t.lon);
+      lon1 = Math.max(lon1, t.lon);
+      lat0 = Math.min(lat0, t.lat);
+      lat1 = Math.max(lat1, t.lat);
+    }
+    const padLon = (lon1 - lon0) * 0.1 + 5;
+    const padLat = (lat1 - lat0) * 0.18 + 4;
+    return { lon0: lon0 - padLon, lon1: lon1 + padLon, lat0: lat0 - padLat, lat1: lat1 + padLat };
+  }
+
+  // Equirectangular projection of a region into a box, corrected for the
+  // region's mid-latitude so shapes are not stretched, and centered.
+  function regionProjector(region, box) {
+    const k = Math.cos((((region.lat0 + region.lat1) / 2) * Math.PI) / 180);
+    const spanX = (region.lon1 - region.lon0) * k;
+    const spanY = region.lat1 - region.lat0;
+    const scale = Math.min(box.w / spanX, box.h / spanY);
+    const ox = box.x + (box.w - spanX * scale) / 2;
+    const oy = box.y + (box.h - spanY * scale) / 2;
+    return (lon, lat) => [ox + (lon - region.lon0) * k * scale, oy + (region.lat1 - lat) * scale];
+  }
+
+  // Closest point to (x, y) within maxDist, or -1.
+  function nearestPoint(points, x, y, maxDist) {
+    let best = -1;
+    let bestD = maxDist;
+    for (let i = 0; i < points.length; i++) {
+      const d = Math.hypot(points[i][0] - x, points[i][1] - y);
+      if (d <= bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    return best;
+  }
+
+  // Greedy label placement: try right, left, above, below each dot and
+  // keep the first spot that clears the labels and dots already placed.
+  // Returns one rect per point, or null where no label fits.
+  function placeLabels(points, widths, h, bounds) {
+    const placed = [];
+    const hits = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+    const dots = points.map(([x, y]) => ({ x: x - 4, y: y - 4, w: 8, h: 8 }));
+    return points.map(([x, y], i) => {
+      const w = widths[i];
+      const g = 14; // clear of the selection crosshair
+      const spots = [
+        { x: x + g, y: y - h / 2 },
+        { x: x - g - w, y: y - h / 2 },
+        { x: x - w / 2, y: y - g - h },
+        { x: x - w / 2, y: y + g },
+        { x: x + g * 0.7, y: y - g * 0.7 - h },
+        { x: x + g * 0.7, y: y + g * 0.7 },
+        { x: x - g * 0.7 - w, y: y - g * 0.7 - h },
+        { x: x - g * 0.7 - w, y: y + g * 0.7 },
+      ];
+      for (const s of spots) {
+        const r = { x: s.x, y: s.y, w, h };
+        if (r.x < bounds.x || r.y < bounds.y || r.x + w > bounds.x + bounds.w || r.y + h > bounds.y + bounds.h) {
+          continue;
+        }
+        if (placed.some((p) => hits(p, r))) continue;
+        if (dots.some((d, j) => j !== i && hits(d, r))) continue;
+        placed.push(r);
+        return r;
+      }
+      return null;
+    });
+  }
+
+  // An interactive map of one side's target database. Clicking a city
+  // calls onPick(target). Returns { update(chosen), close() }, or null
+  // where canvas is unavailable (callers fall back to the typed list).
+  function targetMap(term, { targets, title, max, onPick }) {
+    const cv = makeCanvas(term, 0.5, { pinned: true, share: 0.5 });
+    if (!cv) return null;
+    const { canvas, ctx, cssW, cssH } = cv;
+    canvas.classList.add("live");
+    const fs = fontPx(cssW);
+    const lineH = Math.round(fs * 1.4);
+    const box = { x: 8, y: lineH + 10, w: cssW - 16, h: cssH - lineH * 2 - 22 };
+    const region = regionFor(targets);
+    const project = regionProjector(region, box);
+    const pts = targets.map((t) => project(t.lon, t.lat));
+    const coast = (typeof GEO !== "undefined" ? GEO.COAST : []).map((ring) =>
+      ring.map(([lon, lat]) => (lon < region.lon0 - 40 || lon > region.lon1 + 40 ? null : project(lon, lat)))
+    );
+    const labelFs = cssW < 520 ? 9 : fs;
+    ctx.font = labelFs + "px " + FACE;
+    const labels = placeLabels(
+      pts,
+      targets.map((t) => ctx.measureText(t.name).width + 4),
+      labelFs + 2,
+      box
+    );
+    let chosen = [];
+    let hover = -1;
+    let open = true;
+    const coarse = !!term.coarse;
+
+    function draw() {
+      ctx.clearRect(0, 0, cssW, cssH);
+      const bg = ctx.createLinearGradient(0, 0, 0, cssH);
+      bg.addColorStop(0, COLORS.bg0);
+      bg.addColorStop(1, COLORS.bg1);
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, cssW, cssH);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(box.x, box.y, box.w, box.h);
+      ctx.clip();
+      ctx.strokeStyle = "rgba(58, 255, 110, 0.55)";
+      ctx.lineWidth = 1;
+      for (const ring of coast) {
+        ctx.beginPath();
+        let pen = false;
+        for (let i = 0; i < ring.length; i++) {
+          const p = ring[i];
+          if (!p || (pen && ring[i - 1] && Math.abs(p[0] - ring[i - 1][0]) > box.w * 0.6)) {
+            pen = false;
+            if (!p) continue;
+          }
+          if (pen) ctx.lineTo(p[0], p[1]);
+          else ctx.moveTo(p[0], p[1]);
+          pen = true;
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      ctx.font = labelFs + "px " + FACE;
+      ctx.textBaseline = "middle";
+      let callout = null;
+      targets.forEach((t, i) => {
+        const [x, y] = pts[i];
+        const on = chosen.includes(t);
+        const hot = open && i === hover;
+        const color = on ? COLORS.impact : hot ? COLORS.head : COLORS.text;
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = on || hot ? 10 : 4;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(x, y, on ? 3.4 : 2.6, 0, Math.PI * 2);
+        if (on || hot) ctx.fill();
+        else ctx.stroke();
+        if (on) {
+          ctx.beginPath();
+          ctx.arc(x, y, 7.5, 0, Math.PI * 2);
+          ctx.stroke();
+          for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            ctx.beginPath();
+            ctx.moveTo(x + dx * 7.5, y + dy * 7.5);
+            ctx.lineTo(x + dx * 12, y + dy * 12);
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+        const r = labels[i];
+        if (r) {
+          ctx.fillStyle = color;
+          ctx.fillText(t.name, r.x + 2, r.y + r.h / 2);
+        } else if (hot) {
+          callout = { t, x, y, color };
+        }
+      });
+      // A city with no room for a label names itself under the pointer.
+      if (callout) {
+        const w = ctx.measureText(callout.t.name).width;
+        const lx = Math.min(Math.max(box.x + 2, callout.x - w / 2), box.x + box.w - w - 2);
+        const ly = callout.y - 16 < box.y + labelFs ? callout.y + 18 : callout.y - 16;
+        ctx.fillStyle = "rgba(0, 10, 5, 0.92)";
+        ctx.fillRect(lx - 3, ly - labelFs / 2 - 3, w + 6, labelFs + 6);
+        ctx.fillStyle = callout.color;
+        ctx.fillText(callout.t.name, lx, ly);
+      }
+      ctx.font = fs + "px " + FACE;
+
+      ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = COLORS.text;
+      ctx.textAlign = "left";
+      ctx.fillText(title, box.x + 2, fs + 4);
+      ctx.textAlign = "right";
+      ctx.fillStyle = chosen.length ? COLORS.impact : COLORS.text;
+      ctx.fillText(chosen.length + "/" + max + " SELECTED", cssW - 10, fs + 4);
+      ctx.textAlign = "center";
+      ctx.fillStyle = COLORS.text;
+      const hint = !open
+        ? "TARGETING CLOSED"
+        : fitFooter(
+            ctx,
+            [
+              (coarse ? "TAP" : "CLICK") + " A CITY OR TYPE ITS NAME. AGAIN TO REMOVE. LAUNCH WHEN READY.",
+              (coarse ? "TAP" : "CLICK") + " A CITY OR TYPE ITS NAME. LAUNCH WHEN READY.",
+              (coarse ? "TAP" : "CLICK") + " CITIES, THEN LAUNCH",
+            ],
+            cssW - 20
+          );
+      ctx.fillText(hint, cssW / 2, cssH - 9);
+      ctx.textAlign = "left";
+    }
+
+    const at = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const sx = cssW / (rect.width || cssW);
+      const sy = cssH / (rect.height || cssH);
+      return [(e.clientX - rect.left) * sx, (e.clientY - rect.top) * sy];
+    };
+    const onClick = (e) => {
+      if (!open) return;
+      e.stopPropagation();
+      const [x, y] = at(e);
+      const i = nearestPoint(pts, x, y, coarse ? 36 : 24);
+      if (i >= 0) onPick(targets[i]);
+    };
+    const onMove = (e) => {
+      if (!open) return;
+      const [x, y] = at(e);
+      const i = nearestPoint(pts, x, y, 24);
+      if (i !== hover) {
+        hover = i;
+        canvas.style.cursor = i >= 0 ? "pointer" : "";
+        draw();
+      }
+    };
+    canvas.addEventListener("click", onClick);
+    canvas.addEventListener("mousemove", onMove);
+    canvas.addEventListener("mouseleave", () => {
+      if (hover !== -1) {
+        hover = -1;
+        draw();
+      }
+    });
+    draw();
+    // The face may still be loading on a cold start; redraw when it lands.
+    if (typeof document !== "undefined" && document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => draw()).catch(() => {});
+    }
+
+    return {
+      update(list) {
+        chosen = list.slice();
+        draw();
+      },
+      close() {
+        open = false;
+        hover = -1;
+        canvas.classList.remove("live");
+        canvas.style.cursor = "";
+        if (canvas.parentElement) canvas.parentElement.classList.remove("pinned", "loose");
+        draw();
+      },
+    };
   }
 
   // A keepsake card for finishing the story. Returns a data URL or null.
@@ -507,7 +819,10 @@ const Modern = (() => {
       "A STRANGE GAME.",
       "THE ONLY WINNING MOVE IS NOT TO PLAY.",
       "",
-      "ENDING: " + String(state.ending || "?").toUpperCase(),
+      "ENDING: " +
+        (typeof CrisisCore !== "undefined"
+          ? CrisisCore.endingName(state.ending)
+          : String(state.ending || "?").toUpperCase()),
       "ENDINGS WITNESSED: " + endings + " OF 3",
       "WARS STARTED: " + (state.gtwRuns || 0) + "    LAUNCHES REFUSED: " + (state.refusedLaunch ? "YES" : "NO"),
       "TIC-TAC-TOE TIES: " + (state.tttDraws || 0),
@@ -533,8 +848,14 @@ const Modern = (() => {
     mapDots,
     arcPoint,
     splitSegments,
+    footerForms,
+    regionFor,
+    regionProjector,
+    nearestPoint,
+    placeLabels,
     renderVolley,
     renderTTTMontage,
+    targetMap,
     endingCard,
   };
 })();

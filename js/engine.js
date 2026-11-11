@@ -22,6 +22,7 @@ function defaultState() {
     endingsSeen: [],
     gamesPlayed: 0,
     suspicion: 2,
+    scene: null, // crisis checkpoint to resume from after a reload
   };
 }
 
@@ -59,9 +60,11 @@ function resetState(state) {
   }
 }
 
+// ctx.onScene(name), if present, runs as each scene begins (checkpoints).
 async function runScenes(scenes, start, ctx) {
   let name = start;
   while (name) {
+    if (typeof ctx.onScene === "function") ctx.onScene(name);
     name = await scenes[name](ctx);
   }
 }

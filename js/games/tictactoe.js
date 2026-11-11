@@ -85,52 +85,102 @@ const TTTCore = (() => {
     ].join("\n");
   }
 
-  return { winner, emptyCells, bestMove, selfPlayGame, renderBoard };
+  // The three cells of a completed line, or null.
+  function winLine(board) {
+    for (const line of LINES) {
+      const [a, b, c] = line;
+      if (board[a] && board[a] === board[b] && board[a] === board[c]) return line;
+    }
+    return null;
+  }
+
+  // Rows of cells for the live board: empty squares show their number
+  // and carry it as the click key; `last` marks the newest move.
+  function cells(board, last = -1) {
+    const win = winLine(board) || [];
+    const rows = [];
+    for (let r = 0; r < 3; r++) {
+      const row = [];
+      for (let c = 0; c < 3; c++) {
+        const i = r * 3 + c;
+        const v = board[i];
+        let cls = v ? v.toLowerCase() : "empty";
+        if (i === last || win.includes(i)) cls += " last";
+        row.push({ t: v || String(i + 1), c: cls, k: v ? null : String(i + 1) });
+      }
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  return { winner, winLine, cells, emptyCells, bestMove, selfPlayGame, renderBoard };
 })();
 
 async function playTicTacToe(term, state) {
-  await term.type("YOU ARE X. I AM O. YOU MOVE FIRST.");
-  await term.type("MOVES ARE 1-9. TYPE QUIT TO STOP.");
-  while (true) {
-    const board = Array(9).fill(null);
-    term.print("");
-    term.print(TTTCore.renderBoard(board), "board");
-    term.print("");
-    while (!TTTCore.winner(board)) {
-      const value = await term.read("YOUR MOVE: ");
-      const t = norm(value);
-      if (/^(quit|exit|stop|logoff)$/.test(t)) {
-        await term.type("AS YOU WISH.");
-        return;
-      }
-      const n = parseInt(t, 10);
-      if (!(n >= 1 && n <= 9) || board[n - 1]) {
-        await term.type("ILLEGAL MOVE.");
-        continue;
-      }
-      board[n - 1] = "X";
-      if (!TTTCore.winner(board)) {
-        await term.pause(400);
-        board[TTTCore.bestMove(board, "O")] = "O";
-      }
+  const restore = term.pushHelp(
+    "You are X. Click an empty square or type its number, 1 to 9. QUIT stops the game."
+  );
+  const grid = typeof term.grid === "function" ? term.grid("ttt") : null;
+  const show = (board, last, live) => {
+    if (grid) {
+      grid.render(TTTCore.cells(board, last), live ? { onCell: (k) => term.submitLine(k) } : {});
+    } else {
       term.print("");
       term.print(TTTCore.renderBoard(board), "board");
       term.print("");
     }
-    const result = TTTCore.winner(board);
-    state.tttGames += 1;
-    if (result === "draw") {
-      state.tttDraws += 1;
-      await term.type("TIE GAME.");
-      if (state.tttDraws === 3) {
-        await term.type("WE ALWAYS SEEM TO TIE, PROFESSOR. A STRANGE GAME.");
+  };
+  try {
+    if (grid) grid.pin();
+    show(Array(9).fill(null), -1, false);
+    await term.type("YOU ARE X. I AM O. YOU MOVE FIRST.");
+    await term.type(grid ? "CLICK A SQUARE OR TYPE 1-9. TYPE QUIT TO STOP." : "MOVES ARE 1-9. TYPE QUIT TO STOP.");
+    while (true) {
+      const board = Array(9).fill(null);
+      let last = -1;
+      show(board, last, true);
+      while (!TTTCore.winner(board)) {
+        const value = await term.read("YOUR MOVE: ", { inputmode: "numeric", choices: ["QUIT"] });
+        const t = norm(value);
+        if (/^(quit|exit|stop|logoff)$/.test(t)) {
+          await term.type("AS YOU WISH.");
+          return;
+        }
+        const n = parseInt(t, 10);
+        if (!(n >= 1 && n <= 9) || board[n - 1]) {
+          await term.type("ILLEGAL MOVE.");
+          continue;
+        }
+        board[n - 1] = "X";
+        last = n - 1;
+        show(board, last, false);
+        if (!TTTCore.winner(board)) {
+          await term.pause(400);
+          const reply = TTTCore.bestMove(board, "O");
+          board[reply] = "O";
+          last = reply;
+          await term.type("MY MOVE: " + (reply + 1) + ".");
+        }
+        show(board, last, !TTTCore.winner(board));
       }
-    } else if (result === "O") {
-      await term.type("I WIN.");
-    } else {
-      await term.type("YOU WIN. THAT SHOULD NOT BE POSSIBLE. RECALIBRATING.");
+      const result = TTTCore.winner(board);
+      state.tttGames += 1;
+      if (result === "draw") {
+        state.tttDraws += 1;
+        await term.type("TIE GAME.");
+        if (state.tttDraws === 3) {
+          await term.type("WE ALWAYS SEEM TO TIE, PROFESSOR. A STRANGE GAME.");
+        }
+      } else if (result === "O") {
+        await term.type("I WIN.");
+      } else {
+        await term.type("YOU WIN. THAT SHOULD NOT BE POSSIBLE. RECALIBRATING.");
+      }
+      const again = await term.read("PLAY AGAIN? (YES/NO): ", { choices: ["YES", "NO"] });
+      if (!isYes(norm(again))) return;
     }
-    const again = await term.read("PLAY AGAIN? (YES/NO): ");
-    if (!isYes(norm(again))) return;
+  } finally {
+    if (grid) grid.unpin();
+    restore();
   }
 }

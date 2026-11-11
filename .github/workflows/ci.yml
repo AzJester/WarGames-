@@ -22,6 +22,7 @@ jobs:
           node tests/crisis.js
           node tests/sound.js
           node tests/modern.js
+          node tests/ui.js
 
   browser:
     runs-on: ubuntu-latest

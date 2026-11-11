@@ -70,63 +70,97 @@ const MazeCore = (() => {
     return null;
   }
 
-  return { generate, solvable, render, step };
+  // Rows of cells for the live maze; `seen` holds "x,y" squares walked.
+  function cells(maze, px, py, seen = null) {
+    return maze.grid.map((row, y) =>
+      row.map((c, x) => {
+        if (x === px && y === py) return { t: "@", c: "me" };
+        if (x === maze.exit[0] && y === maze.exit[1]) return { t: "X", c: "exit" };
+        if (c === "#") return { t: "", c: "wall" };
+        return seen && seen.has(x + "," + y) ? { t: "·", c: "trail" } : { t: "", c: "" };
+      })
+    );
+  }
+
+  return { generate, solvable, render, step, cells };
 })();
 
 async function playMaze(term, state) {
-  await term.type("FALKEN'S MAZE. THE FIRST GAME HE EVER WROTE FOR ME.");
-  await term.type("YOU ARE @. REACH X. MOVE WITH N, S, E, W. TYPE QUIT TO STOP.");
+  const restore = term.pushHelp(
+    "You are the bright square. Reach the amber X. Use the arrow keys or the N, S, E, W buttons, or type a direction. You keep walking until the corridor branches. QUIT stops."
+  );
+  const grid = typeof term.grid === "function" ? term.grid("maze") : null;
   const maze = MazeCore.generate();
   let [px, py] = maze.start;
   let steps = 0;
-  term.print("");
-  term.print(MazeCore.render(maze, px, py), "board");
-  term.print("");
-  while (true) {
-    const t = await term.read("DIRECTION: ");
-    const tn = norm(t);
-    if (/^(quit|exit|stop)$/.test(tn)) {
-      await term.type("THE MAZE WILL KEEP.");
-      break;
+  const seen = new Set([px + "," + py]);
+  const show = () => {
+    if (grid) {
+      grid.render(MazeCore.cells(maze, px, py, seen));
+    } else {
+      term.print("");
+      term.print(MazeCore.render(maze, px, py), "board");
+      term.print("");
     }
-    const d = MazeCore.step(tn);
-    if (!d) {
-      await term.type("N, S, E OR W, PROFESSOR.");
-      continue;
-    }
-    // walk in that direction until a wall or a junction, maze-runner style
-    let moved = false;
+  };
+  const keys = { ArrowUp: "N", ArrowDown: "S", ArrowLeft: "W", ArrowRight: "E" };
+  const chips = ["W", "N", "S", "E", "QUIT"];
+  try {
+    if (grid) grid.pin();
+    show();
+    await term.type("FALKEN'S MAZE. THE FIRST GAME HE EVER WROTE FOR ME.");
+    await term.type(
+      grid
+        ? "YOU ARE @. REACH X. USE THE ARROW KEYS, OR N, S, E, W. TYPE QUIT TO STOP."
+        : "YOU ARE @. REACH X. MOVE WITH N, S, E, W. TYPE QUIT TO STOP."
+    );
     while (true) {
-      const nx = px + d[0];
-      const ny = py + d[1];
-      if (!maze.grid[ny] || maze.grid[ny][nx] !== " ") break;
-      px = nx;
-      py = ny;
-      steps += 1;
-      moved = true;
-      const exits = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(
-        ([dx, dy]) =>
-          !(dx === -d[0] && dy === -d[1]) &&
-          maze.grid[py + dy] &&
-          maze.grid[py + dy][px + dx] === " "
-      );
-      if (px === maze.exit[0] && py === maze.exit[1]) break;
-      if (exits.length !== 1 || exits[0][0] !== d[0] || exits[0][1] !== d[1]) break;
-      d[0] = exits[0][0];
-      d[1] = exits[0][1];
+      const tn = norm(await term.read("DIRECTION: ", { keys, choices: chips }));
+      if (/^(quit|exit|stop)$/.test(tn)) {
+        await term.type("THE MAZE WILL KEEP.");
+        break;
+      }
+      const d = MazeCore.step(tn);
+      if (!d) {
+        await term.type("N, S, E OR W, PROFESSOR.");
+        continue;
+      }
+      // walk in that direction until a wall or a junction, maze-runner style
+      let moved = false;
+      while (true) {
+        const nx = px + d[0];
+        const ny = py + d[1];
+        if (!maze.grid[ny] || maze.grid[ny][nx] !== " ") break;
+        px = nx;
+        py = ny;
+        seen.add(px + "," + py);
+        steps += 1;
+        moved = true;
+        const exits = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(
+          ([dx, dy]) =>
+            !(dx === -d[0] && dy === -d[1]) &&
+            maze.grid[py + dy] &&
+            maze.grid[py + dy][px + dx] === " "
+        );
+        if (px === maze.exit[0] && py === maze.exit[1]) break;
+        if (exits.length !== 1 || exits[0][0] !== d[0] || exits[0][1] !== d[1]) break;
+        d[0] = exits[0][0];
+        d[1] = exits[0][1];
+      }
+      if (!moved) {
+        await term.type("A WALL.");
+        continue;
+      }
+      show();
+      if (px === maze.exit[0] && py === maze.exit[1]) {
+        await term.type("YOU FOUND THE WAY OUT IN " + steps + " STEPS.");
+        await term.type("JOSHUA ALWAYS FOUND THE CENTER. HIS FATHER NEVER KNEW HOW.");
+        break;
+      }
     }
-    if (!moved) {
-      await term.type("A WALL.");
-      continue;
-    }
-    term.print("");
-    term.print(MazeCore.render(maze, px, py), "board");
-    term.print("");
-    if (px === maze.exit[0] && py === maze.exit[1]) {
-      await term.type("YOU FOUND THE WAY OUT IN " + steps + " STEPS.");
-      await term.type("JOSHUA ALWAYS FOUND THE CENTER. HIS FATHER NEVER KNEW HOW.");
-      break;
-    }
+    state.gamesPlayed = (state.gamesPlayed || 0) + 1;
+  } finally {
+    if (grid) grid.unpin();
+    restore();
   }
-  state.gamesPlayed = (state.gamesPlayed || 0) + 1;
 }

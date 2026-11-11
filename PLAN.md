@@ -148,17 +148,29 @@ Alternative considered: a Python CLI with `curses`. Rejected as primary because 
 - PWA (manifest + service worker, offline play, installable), visible mobile input bar.
 - LISTEN ON speech input; SHARE keepsake ending card.
 
+### M9: Interface and feel (post-ship, from a playtest review)
+- Bugs found by playing it: the big board rendered half off-screen during the missile animation; one touch skipped the whole war; type-ahead was mangled; settings commands cost turns at DEFCON 1 and were ignored at several prompts; closing the tab mid-crisis lost the player's place; the service worker stranded returning players on an old build; scroll-back snapped to the bottom; the DEFCON bar was see-through; the target list was cut off on phones; the checkers instructions gave an illegal example move.
+- A monitor instead of a page: centered 100-column glass with the text in a 90-column gutter, type that scales with the window, and a shallow vignette that no longer dims the start of every line.
+- A real title card (block-letter logo, power-on prompt) and a real ending (hold on the last line, then an end card with endings found, hints toward the rest, and what to do next).
+- Controls where the player can find them: a corner toolbar (SOUND, VOICE, FAST, HELP), a HELP / OPTIONS panel with every setting and command, context HELP at every prompt, and a row of suggested-command buttons under the screen.
+- Global Thermonuclear War picks targets on a map of the other side: click cities, click again to remove, then LAUNCH.
+- Live boards for tic-tac-toe, chess, checkers, the maze and poker: updated in place and pinned while the log scrolls, clickable, with Joshua naming and highlighting his moves. Chess calls check and ends on checkmate; the maze takes arrow keys.
+- Pacing: a short redial after the first wrong logon; the DEFCON 1 clock counts down in real time inside each turn without changing the turn budget.
+- Crisis scenes are checkpoints; a reload resumes at the latest one.
+- Service worker is network-first with a cache fallback, so a release reaches returning players on their next visit whether or not VERSION was bumped.
+- Tests: the browser test now plays the story on laptop and phone sizes and asserts the behaviors above; new node tests cover the settings registry, the board cell builders, check and mate, the clock, and the targeting-map math.
+
 ## 5. Stretch Goals
-- Playable chess and checkers with real (weak) AIs.
-- Speech synthesis for Joshua's lines (WebSpeech API, heavily filtered).
-- A `MENU` cheat after first completion: jump to any act, play any minigame directly.
-- Two-player hotseat Global Thermonuclear War (both sides human, nobody wins anyway).
+- Playable chess and checkers with real (weak) AIs. (Shipped in M7; M9 added check, mate, and a positional tie-break.)
+- Speech synthesis for Joshua's lines (WebSpeech API, heavily filtered). (Shipped.)
+- A `MENU` cheat after first completion: jump to any act, play any minigame directly. (Shipped in M7.)
+- Two-player hotseat Global Thermonuclear War (both sides human, nobody wins anyway). (Shipped in M8.)
 
 ---
 
 ## 6. Out of Scope
 - Frameworks, bundlers, or a backend. Everything runs client-side.
-- Graphics beyond ASCII/Unicode art and CSS. The terminal is the aesthetic.
+- A graphical game. The terminal is the aesthetic: boards, maps and buttons are drawn in its face and colors, and everything they do can also be typed.
 - Verbatim film dialogue beyond short iconic lines; scenes are adapted, not transcribed.
 
 ---
@@ -170,3 +182,10 @@ Resolved 2026-06-10:
 1. **Acts 1-2 are skippable, including on a first play.** A `SKIP` command at boot jumps straight to the WOPR connection. The escalating logon hints already shipped in M1 stay, so skippers can still find the password without out-of-game knowledge.
 2. **Sound is on by default, with an opt-out.** `SOUND OFF` / `SOUND ON` commands, preference persisted in localStorage. Browsers block audio until the first user gesture, so the modem handshake starts on the first keypress or tap rather than at page load.
 3. **The Falken research puzzle is easy.** Two or three steps with clues clearly surfaced: search the archive, the Falken article points to the obituary, the obituary names Joshua. The aside hints remain as a safety net.
+
+Resolved 2026-11-11 (M9):
+
+4. **Typing stays primary; clicking is additive.** Every button, board square and map city submits the same command a player could type, so the transcript reads the same either way and `BUTTONS OFF` restores a bare terminal.
+5. **Skip is Enter, Space, Escape or a tap, not "any key".** Other keys are type-ahead for the next prompt. A skip stops at the next animation so the big board is never skipped by accident.
+6. **The DEFCON 1 clock is turn-based underneath.** It ticks on screen for pressure, but only what the player types can cost time, and settings or HELP never do.
+7. **Offline support is network-first.** The cache is a fallback, not the source of truth, so a missed version bump can no longer strand players on an old build.

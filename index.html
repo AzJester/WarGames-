@@ -12,15 +12,26 @@
 </head>
 <body>
 <h1 class="sr-only">WarGames: an interactive terminal game of the 1983 film</h1>
-<p class="sr-only">A text game played by typing. Type a command and press Enter; the system's replies are read aloud as they appear. Begin by typing SCAN, or type SKIP to jump ahead. Type SOUND OFF to mute and FAST to speed up text.</p>
+<p class="sr-only">A text game played by typing. Type a command and press Enter; the system's replies are read aloud as they appear. Begin by pressing Enter, then type SCAN, or type SKIP to jump ahead. Type HELP at any prompt for what to do next, and OPTIONS for settings. Type SOUND OFF to mute and FAST to speed up text.</p>
 <div id="crt">
-  <div id="status" role="status"></div>
+  <div id="topbar">
+    <div id="status" role="status"></div>
+    <div id="toolbar" role="toolbar" aria-label="Game controls">
+      <button type="button" data-ctl="sound" aria-pressed="true" title="Sound effects on or off">SOUND</button>
+      <button type="button" data-ctl="voice" aria-pressed="true" title="Joshua's voice on or off">VOICE</button>
+      <button type="button" data-ctl="fast" aria-pressed="false" title="Print text instantly">FAST</button>
+      <button type="button" data-ctl="help" title="Help, settings and commands">HELP</button>
+    </div>
+  </div>
   <main id="screen" aria-hidden="true"></main>
+  <button id="more" type="button" hidden>▼ NEW OUTPUT</button>
+  <div id="choices" role="group" aria-label="Suggested commands"></div>
+  <input id="kbd" type="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Terminal command input">
   <div id="scan"></div>
   <div id="vignette"></div>
-  <div id="flash"></div>
 </div>
-<input id="kbd" type="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Terminal command input">
+<div id="flash"></div>
+<div id="overlay" role="dialog" aria-modal="true" aria-labelledby="overlay-title" hidden></div>
 <div id="sr-live" class="sr-only" role="log" aria-live="polite"></div>
 <noscript><p style="color:#3aff6e;background:#000;font-family:monospace;padding:2rem;">THIS TERMINAL REQUIRES JAVASCRIPT.</p></noscript>
 <script defer src="js/sound.js"></script>
@@ -38,6 +49,7 @@
 <script defer src="js/games/maze.js"></script>
 <script defer src="js/games/gtw.js"></script>
 <script defer src="js/engine.js"></script>
+<script defer src="js/ui.js"></script>
 <script defer src="js/main.js"></script>
 </body>
 </html>

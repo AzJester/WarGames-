@@ -215,4 +215,35 @@ check("intercepts truncate paths and mark missiles", () => {
   assert.ok(frame.includes("IMPACTS CONFIRMED:  0"));
 });
 
+
+check("the live tic-tac-toe board keys empty squares and marks the last move", () => {
+  const board = ["X", null, null, null, "O", null, null, null, null];
+  const rows = TTTCore.cells(board, 4);
+  assert.strictEqual(rows.length, 3);
+  assert.deepStrictEqual(rows[0][0], { t: "X", c: "x", k: null });
+  assert.deepStrictEqual(rows[0][1], { t: "2", c: "empty", k: "2" });
+  assert.strictEqual(rows[1][1].c, "o last");
+  assert.strictEqual(rows[1][1].k, null);
+});
+
+check("a completed line is found and highlighted", () => {
+  const board = ["O", "O", "O", "X", "X", null, null, null, "X"];
+  assert.deepStrictEqual(TTTCore.winLine(board), [0, 1, 2]);
+  assert.strictEqual(TTTCore.winLine(Array(9).fill(null)), null);
+  const top = TTTCore.cells(board, 8)[0];
+  assert.ok(top.every((c) => c.c.includes("last")));
+});
+
+check("the target list picks a column count that fits the screen", () => {
+  assert.strictEqual(GTWCore.perRowFor(90), 3);
+  assert.strictEqual(GTWCore.perRowFor(50), 2);
+  assert.strictEqual(GTWCore.perRowFor(30), 1);
+  assert.strictEqual(GTWCore.perRowFor(10), 1);
+  const names = GTWCore.TARGETS_US.map((c) => c.name);
+  for (const cols of [90, 50, 30]) {
+    const width = Math.max(...GTWCore.columns(names, GTWCore.perRowFor(cols)).split("\n").map((l) => l.length));
+    assert.ok(width <= cols, `${width} > ${cols}`);
+  }
+});
+
 console.log(`\nALL TESTS PASSED (${passed})`);
