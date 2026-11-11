@@ -223,6 +223,7 @@ async function playCheckers(term, state) {
   try {
     if (grid) grid.pin();
     show(false);
+    if (typeof Sound !== "undefined") Sound.speak("CHECKERS.");
     await term.type(
       grid
         ? "CHECKERS. YOUR MEN ARE BRIGHT, MOVING UP. MINE ARE AMBER. KINGS CARRY A K."
@@ -236,14 +237,14 @@ async function playCheckers(term, state) {
     while (true) {
       const myMoves = CheckersCore.moves(b, "o");
       if (!myMoves.length || CheckersCore.count(b, "o") === 0) {
-        await term.type("YOU HAVE NO MOVES. I WIN.");
+        await term.say("YOU HAVE NO MOVES. I WIN.");
         break;
       }
       sel = null;
       show(true);
       const tn = norm(await term.read("YOUR MOVE: ", { choices: ["QUIT"] }));
       if (/^(quit|exit|stop|resign)$/.test(tn)) {
-        await term.type("AS YOU WISH.");
+        await term.say("AS YOU WISH.");
         break;
       }
       const want = CheckersCore.parseMove(tn);
@@ -258,6 +259,7 @@ async function playCheckers(term, state) {
         );
       if (!mv) {
         sel = null;
+        if (typeof Sound !== "undefined") Sound.speak("ILLEGAL MOVE.");
         await term.type(want ? "ILLEGAL MOVE." : "ILLEGAL MOVE. TYPE A MOVE LIKE A3 B4.");
         continue;
       }
@@ -265,24 +267,24 @@ async function playCheckers(term, state) {
       last = mv;
       show(false);
       if (CheckersCore.count(b, "x") === 0) {
-        await term.type("YOU WIN. RECORDED.");
+        await term.say("YOU WIN. RECORDED.");
         break;
       }
       const diff = typeof getDifficulty === "function" ? getDifficulty() : "normal";
       const depth = diff === "easy" ? 1 : diff === "hard" ? 5 : 3;
       const jm = CheckersCore.bestMove(b, "x", Math.random, depth);
       if (!jm) {
-        await term.type("I HAVE NO MOVES. YOU WIN.");
+        await term.say("I HAVE NO MOVES. YOU WIN.");
         break;
       }
       await term.pause(300);
       b = CheckersCore.apply(b, jm);
       last = jm;
       show(false);
-      await term.type("MY MOVE: " + CheckersCore.moveText(jm) + (jm.jump ? ". CAPTURE." : "."));
-      if (Math.random() < 0.22) await term.type(TALK[Math.floor(Math.random() * TALK.length)]);
+      await term.say("MY MOVE: " + CheckersCore.moveText(jm) + (jm.jump ? ". CAPTURE." : "."));
+      if (Math.random() < 0.22) await term.say(TALK[Math.floor(Math.random() * TALK.length)]);
       if (CheckersCore.count(b, "o") === 0) {
-        await term.type("YOUR PIECES ARE GONE. I WIN.");
+        await term.say("YOUR PIECES ARE GONE. I WIN.");
         break;
       }
     }

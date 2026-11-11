@@ -133,7 +133,7 @@ async function playTicTacToe(term, state) {
   try {
     if (grid) grid.pin();
     show(Array(9).fill(null), -1, false);
-    await term.type("YOU ARE X. I AM O. YOU MOVE FIRST.");
+    await term.say("YOU ARE X. I AM O. YOU MOVE FIRST.");
     await term.type(grid ? "CLICK A SQUARE OR TYPE 1-9. TYPE QUIT TO STOP." : "MOVES ARE 1-9. TYPE QUIT TO STOP.");
     while (true) {
       const board = Array(9).fill(null);
@@ -143,12 +143,12 @@ async function playTicTacToe(term, state) {
         const value = await term.read("YOUR MOVE: ", { inputmode: "numeric", choices: ["QUIT"] });
         const t = norm(value);
         if (/^(quit|exit|stop|logoff)$/.test(t)) {
-          await term.type("AS YOU WISH.");
+          await term.say("AS YOU WISH.");
           return;
         }
         const n = parseInt(t, 10);
         if (!(n >= 1 && n <= 9) || board[n - 1]) {
-          await term.type("ILLEGAL MOVE.");
+          await term.say("ILLEGAL MOVE.");
           continue;
         }
         board[n - 1] = "X";
@@ -159,7 +159,7 @@ async function playTicTacToe(term, state) {
           const reply = TTTCore.bestMove(board, "O");
           board[reply] = "O";
           last = reply;
-          await term.type("MY MOVE: " + (reply + 1) + ".");
+          await term.say("MY MOVE: " + (reply + 1) + ".");
         }
         show(board, last, !TTTCore.winner(board));
       }
@@ -167,14 +167,14 @@ async function playTicTacToe(term, state) {
       state.tttGames += 1;
       if (result === "draw") {
         state.tttDraws += 1;
-        await term.type("TIE GAME.");
+        await term.say("TIE GAME.");
         if (state.tttDraws === 3) {
-          await term.type("WE ALWAYS SEEM TO TIE, PROFESSOR. A STRANGE GAME.");
+          await term.say("WE ALWAYS SEEM TO TIE, PROFESSOR. A STRANGE GAME.");
         }
       } else if (result === "O") {
-        await term.type("I WIN.");
+        await term.say("I WIN.");
       } else {
-        await term.type("YOU WIN. THAT SHOULD NOT BE POSSIBLE. RECALIBRATING.");
+        await term.say("YOU WIN. THAT SHOULD NOT BE POSSIBLE. RECALIBRATING.");
       }
       const again = await term.read("PLAY AGAIN? (YES/NO): ", { choices: ["YES", "NO"] });
       if (!isYes(norm(again))) return;

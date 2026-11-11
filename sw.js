@@ -4,7 +4,7 @@
  * cache, whether or not VERSION was bumped. Bump VERSION anyway when the
  * asset list changes, so the old cache is dropped. Relative paths keep
  * the subpath hosting (github.io/WarGames-/) working. */
-const VERSION = "wg-m9-1";
+const VERSION = "wg-m9-2";
 const ASSETS = [
   "./",
   "index.html",
@@ -46,12 +46,30 @@ self.addEventListener("install", (e) => {
   );
 });
 
+// The release before M9 served everything cache-first and never
+// revalidated, so a page it had already loaded would keep showing that
+// old build until the visit after next. When this worker takes over from
+// that one, it reloads the open pages once: players arriving with the
+// old build cached are moved to the current one on that same visit.
+// From M9 on the worker is network-first, so a page is already current
+// when it loads and needs no reload.
+const LEGACY_CACHE = "wg-m8-1";
+
 self.addEventListener("activate", (e) => {
   e.waitUntil(
-    caches
-      .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim())
+    (async () => {
+      const keys = await caches.keys();
+      const fromLegacy = keys.includes(LEGACY_CACHE);
+      await Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k)));
+      await self.clients.claim();
+      if (!fromLegacy) return;
+      const pages = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const page of pages) {
+        // Not awaited: a navigation that is refused must not hold up
+        // activation, and the next visit is network-first regardless.
+        page.navigate(page.url).catch(() => {});
+      }
+    })()
   );
 });
 

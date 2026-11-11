@@ -437,9 +437,9 @@ async function selectTargets(term, state, enemyTargets, attackerIsUS, label) {
     "Pick up to six cities: click them on the map, use the buttons, or type a name. Naming a country picks four at random. REMOVE <city> takes one back. LAUNCH commits, ABORT backs out."
   );
   term.print("");
-  await term.type("AWAITING " + label + " COMMAND");
+  await term.say("AWAITING " + label + " COMMAND");
   term.print("");
-  await term.type("PLEASE LIST PRIMARY TARGETS BY CITY AND/OR COUNTRY.");
+  await term.say("PLEASE LIST PRIMARY TARGETS BY CITY AND/OR COUNTRY.");
   const map =
     typeof Modern !== "undefined" && Modern.isModern() && typeof Modern.targetMap === "function"
       ? Modern.targetMap(term, {
@@ -514,7 +514,7 @@ async function selectTargets(term, state, enemyTargets, attackerIsUS, label) {
     const country = GTWCore.pickCountry(t);
     if (country) {
       if ((country === "US") === attackerIsUS) {
-        await term.type("TARGETING YOUR OWN TERRITORY IS NOT ADVISED, PROFESSOR.");
+        await term.say("TARGETING YOUR OWN TERRITORY IS NOT ADVISED, PROFESSOR.");
         continue;
       }
       for (const c of GTWCore.pickRandom(enemyTargets, 4)) {
@@ -595,8 +595,8 @@ async function playGTWHotseat(term, state, p1IsUS) {
   await runVolley(term, ["MUTUAL EXCHANGE IN PROGRESS"], [...m1, ...m2]);
   await reportStrike(term, m1, t1);
   await reportStrike(term, m2, t2);
-  await term.type("EXCHANGE COMPLETE. WINNER: NONE.");
-  await term.type("AN INSTRUCTIVE EXERCISE. NEITHER PLAYER HAS WON. NEITHER PLAYER COULD.");
+  await term.say("EXCHANGE COMPLETE. WINNER: NONE.");
+  await term.say("AN INSTRUCTIVE EXERCISE. NEITHER PLAYER HAS WON. NEITHER PLAYER COULD.");
   term.print("");
   state.gamesPlayed = (state.gamesPlayed || 0) + 1;
   return { completed: false };
@@ -615,7 +615,7 @@ async function playGTW(term, state) {
 
 async function runGTW(term, state) {
   term.print("");
-  await term.type("WHICH SIDE DO YOU WANT?");
+  await term.say("WHICH SIDE DO YOU WANT?");
   term.print("");
   await term.type("  1.    UNITED STATES");
   await term.type("  2.    SOVIET UNION");

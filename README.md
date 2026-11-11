@@ -47,7 +47,7 @@ Everything can be typed. Most things can also be clicked or tapped.
   - `DIFFICULTY EASY|NORMAL|HARD` tunes the game AIs and the ABM screens (on easy, interceptors thin the retaliation aimed at you; on hard, yours).
   - `HELP` (what to do at this prompt), `OPTIONS` (the panel), `STORY`, `STATS`, `SHARE` (a keepsake card after an ending), `LISTEN ON` (speak to Joshua; Chrome).
 - **Games.** Chess and checkers: click a piece, then a square, or type `E2 E4`. Tic-tac-toe: click a square or type 1-9. The maze: arrow keys, the N/S/E/W buttons, or typed directions. Poker: click the cards to throw away, then `DRAW`. Global Thermonuclear War: click cities on the targeting map (again to remove), then `LAUNCH`; side select includes `3. TWO PLAYERS` for hotseat mutual destruction.
-- `RESET` at the `LOGON:` prompt wipes saved progress. The game installs as an app and works offline (PWA); when online it always loads the current build.
+- `RESET` at the `LOGON:` prompt wipes saved progress. The game installs as an app and works offline (PWA); when online it always loads the current build. A browser still holding the first offline release is moved to the current build on its next visit, with one automatic reload.
 
 Stuck? The system's designer had a son. Or type `HELP`.
 
@@ -55,6 +55,7 @@ Stuck? The system's designer had a son. Or type `HELP`.
 
 - All animation (flicker, scanlines, the cursor, the power-on effect, the bad-ending flash) is reduced or disabled under `prefers-reduced-motion`.
 - Sound is opt-out and persists. Browsers keep audio muted until your first interaction, so the game opens on a title card; the keypress or tap that powers it on unlocks audio and plays the CRT power-up hum.
+- Joshua speaks his lines aloud, in the conversation and in the games, through the browser's speech synthesis. He stops when you answer or skip, and `VOICE OFF` silences him without muting the effects. Lines are rewritten for the engine before they are spoken (the 6/23/73 date, "Dr.", board squares). Whether a voice is available, and what it sounds like, depends on the browser and operating system.
 - The game is fully playable from the keyboard; output is mirrored to an `aria-live` log region for screen readers. The toolbar, the suggested-command buttons and the options panel are real buttons with labels and pressed states.
 - The DEFCON 1 clock counts down on screen, but the outcome is decided by turns, not seconds: reading slowly, asking for help, or changing a setting never costs anything.
 - Text sits in a centered column of at most 90 characters and scales with the window. On touch devices the keyboard only opens when you tap the input bar.
@@ -69,7 +70,7 @@ node tests/games.js    # tic-tac-toe minimax, GTW map and targeting
 node tests/games2.js   # chess, checkers, cards, maze, crisis additions
 node tests/intro.js    # war-dialer and research archive
 node tests/crisis.js   # DEFCON 1 decision logic and endings
-node tests/sound.js    # sound module (no-op without WebAudio)
+node tests/sound.js    # sound module, and Joshua's voice against a fake speech engine
 node tests/modern.js   # modern-mode core (arcs, targeting map, fallback)
 node tests/ui.js       # settings registry behind the toolbar and commands
 node tests/browser.js  # real-browser playthroughs, laptop and phone (CI; needs playwright)
@@ -83,7 +84,8 @@ css/crt.css           phosphor theme, centered layout, live boards, DEFCON bar
 js/terminal.js        typewriter output, input, skip and type-ahead rules,
                       scroll-back, chips, live boards, status bar
 js/ui.js              settings registry, toolbar, HELP / OPTIONS panel
-js/sound.js           synthesized modem / klaxon / key clicks (WebAudio)
+js/sound.js           synthesized modem / klaxon / key clicks (WebAudio),
+                      and Joshua's voice (speech synthesis)
 js/parser.js          shared parsing (game aliases, yes/no)
 js/geo.js             baked Natural Earth coastlines + land raster
 js/modern.js          canvas big board, targeting map, montage, share card
