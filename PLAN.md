@@ -160,6 +160,12 @@ Alternative considered: a Python CLI with `curses`. Rejected as primary because 
 - Service worker is network-first with a cache fallback, so a release reaches returning players on their next visit whether or not VERSION was bumped.
 - Tests: the browser test now plays the story on laptop and phone sizes and asserts the behaviors above; new node tests cover the settings registry, the board cell builders, check and mate, the clock, and the targeting-map math.
 
+### M9.1: Joshua's voice and the upgrade path
+- The voice was tested for real: Chromium driving a speech engine (speech-dispatcher with espeak-ng), with the audio recorded from a virtual sound card and lined up against the speech events. That showed two mispronunciations (6/23/73 read as "six slash twenty-three slash seventy-three", DR. as "D R"), the voice trailing up to twelve seconds behind skipped text, a cancel on every input even when nothing was being said, and Joshua falling silent as soon as a game began.
+- Lines are now rewritten for the engine before they are spoken; a skip silences him until the next prompt or animation; only an engine that is actually speaking is cancelled, and a line that follows a cancel waits a short beat; Joshua speaks in the games; the power-on gesture primes speech for browsers that only allow it from a tap.
+- The service worker reloads pages still running the pre-M9 cached build, so those players reach the current release on their next visit instead of the one after.
+- Not established: how the voice behaves on engines other than the one tested. On that engine some lines were still dropped by the browser's Linux speech backend in a bare page with no game involved, so the recordings cannot rule out engine-specific quirks elsewhere.
+
 ## 5. Stretch Goals
 - Playable chess and checkers with real (weak) AIs. (Shipped in M7; M9 added check, mate, and a positional tie-break.)
 - Speech synthesis for Joshua's lines (WebSpeech API, heavily filtered). (Shipped.)

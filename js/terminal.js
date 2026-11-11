@@ -29,7 +29,7 @@ class Terminal {
     this.histIdx = 0;
     this.histDraft = "";
     this.reading = false;
-    this.skip = false;
+    this._skip = false;
     this.fast = false;
     this.held = false; // an overlay is open: output and input wait
     this.stick = true; // follow new output unless the player scrolled back
@@ -88,6 +88,25 @@ class Terminal {
       });
     }
     this._focus();
+  }
+
+  // Skipping also quiets Joshua: the voice must not trail behind text the
+  // player has chosen not to wait for.
+  get skip() {
+    return this._skip;
+  }
+
+  set skip(on) {
+    this._skip = !!on;
+    if (typeof Sound !== "undefined" && typeof Sound.setHushed === "function") {
+      Sound.setHushed(this._skip);
+    }
+  }
+
+  // Type a line that Joshua also speaks.
+  async say(text, opts) {
+    if (typeof Sound !== "undefined") Sound.speak(text);
+    await this.type(text, opts);
   }
 
   async type(text, { cps = 30, cls = "" } = {}) {
@@ -477,6 +496,8 @@ class Terminal {
     this.input.value = "";
     this._setChoices(null);
     this._expireLinks();
+    // The player has spoken: Joshua stops mid-sentence, as in conversation.
+    if (typeof Sound !== "undefined") Sound.shutUp();
     if (value && this.history[this.history.length - 1] !== value) {
       this.history.push(value);
     }

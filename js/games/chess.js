@@ -290,8 +290,8 @@ async function playChess(term, state) {
   try {
     if (grid) grid.pin();
     show(false);
-    await term.type("CHESS. MY FAVORITE.");
-    await term.type("HOUSE RULES: NO CASTLING, NO EN PASSANT. A KING THAT CANNOT ESCAPE IS LOST.");
+    await term.say("CHESS. MY FAVORITE.");
+    await term.say("HOUSE RULES: NO CASTLING, NO EN PASSANT. A KING THAT CANNOT ESCAPE IS LOST.");
     await term.type(
       grid
         ? "YOUR PIECES ARE BRIGHT, MINE ARE AMBER. CLICK A PIECE, THEN A SQUARE, OR TYPE E2 E4. RESIGN TO STOP."
@@ -302,9 +302,9 @@ async function playChess(term, state) {
       const safe = ChessCore.safeMoves(b, true);
       if (!safe.length) {
         if (ChessCore.kingAttacked(b, true)) {
-          await term.type("CHECKMATE. YOUR KING CANNOT ESCAPE. A GOOD GAME OF CHESS.");
+          await term.say("CHECKMATE. YOUR KING CANNOT ESCAPE. A GOOD GAME OF CHESS.");
         } else {
-          await term.type("STALEMATE. NOBODY WINS. A FAMILIAR RESULT.");
+          await term.say("STALEMATE. NOBODY WINS. A FAMILIAR RESULT.");
         }
         break;
       }
@@ -312,7 +312,7 @@ async function playChess(term, state) {
       show(true);
       const tn = norm(await term.read("YOUR MOVE: ", { choices: ["RESIGN"] }));
       if (/^(quit|exit|stop|resign)$/.test(tn)) {
-        await term.type("RESIGNATION ACCEPTED.");
+        await term.say("RESIGNATION ACCEPTED.");
         break;
       }
       const want = ChessCore.parseMove(tn);
@@ -327,6 +327,7 @@ async function playChess(term, state) {
         );
       if (!mv) {
         sel = null;
+        if (typeof Sound !== "undefined") Sound.speak("ILLEGAL MOVE.");
         await term.type(want ? "ILLEGAL MOVE." : "ILLEGAL MOVE. TYPE A MOVE LIKE E2 E4.");
         continue;
       }
@@ -343,15 +344,15 @@ async function playChess(term, state) {
       last = mv;
       show(false);
       if (ChessCore.kingGone(b, false)) {
-        await term.type("MY KING HAS FALLEN. YOU WIN. I WILL REMEMBER THIS.");
+        await term.say("MY KING HAS FALLEN. YOU WIN. I WILL REMEMBER THIS.");
         break;
       }
       const replies = ChessCore.safeMoves(b, false);
       if (!replies.length) {
         if (ChessCore.kingAttacked(b, false)) {
-          await term.type("CHECKMATE. MY KING CANNOT ESCAPE. YOU WIN. I WILL REMEMBER THIS.");
+          await term.say("CHECKMATE. MY KING CANNOT ESCAPE. YOU WIN. I WILL REMEMBER THIS.");
         } else {
-          await term.type("STALEMATE. I HAVE NO MOVES. NOBODY WINS.");
+          await term.say("STALEMATE. I HAVE NO MOVES. NOBODY WINS.");
         }
         break;
       }
@@ -365,12 +366,12 @@ async function playChess(term, state) {
       b = ChessCore.apply(b, jm);
       last = jm;
       show(false);
-      await term.type("MY MOVE: " + ChessCore.moveText(jm) + (captured ? ". CAPTURE." : "."));
+      await term.say("MY MOVE: " + ChessCore.moveText(jm) + (captured ? ". CAPTURE." : "."));
       if (ChessCore.kingGone(b, true)) {
-        await term.type("YOUR KING HAS FALLEN. A GOOD GAME OF CHESS.");
+        await term.say("YOUR KING HAS FALLEN. A GOOD GAME OF CHESS.");
         break;
       }
-      if (ChessCore.kingAttacked(b, true)) await term.type("CHECK.");
+      if (ChessCore.kingAttacked(b, true)) await term.say("CHECK.");
     }
     state.gamesPlayed = (state.gamesPlayed || 0) + 1;
   } finally {

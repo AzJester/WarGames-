@@ -108,7 +108,7 @@ async function playMaze(term, state) {
   try {
     if (grid) grid.pin();
     show();
-    await term.type("FALKEN'S MAZE. THE FIRST GAME HE EVER WROTE FOR ME.");
+    await term.say("FALKEN'S MAZE. THE FIRST GAME HE EVER WROTE FOR ME.");
     await term.type(
       grid
         ? "YOU ARE @. REACH X. USE THE ARROW KEYS, OR N, S, E, W. TYPE QUIT TO STOP."
@@ -117,7 +117,7 @@ async function playMaze(term, state) {
     while (true) {
       const tn = norm(await term.read("DIRECTION: ", { keys, choices: chips }));
       if (/^(quit|exit|stop)$/.test(tn)) {
-        await term.type("THE MAZE WILL KEEP.");
+        await term.say("THE MAZE WILL KEEP.");
         break;
       }
       const d = MazeCore.step(tn);
@@ -148,13 +148,13 @@ async function playMaze(term, state) {
         d[1] = exits[0][1];
       }
       if (!moved) {
-        await term.type("A WALL.");
+        await term.say("A WALL.");
         continue;
       }
       show();
       if (px === maze.exit[0] && py === maze.exit[1]) {
-        await term.type("YOU FOUND THE WAY OUT IN " + steps + " STEPS.");
-        await term.type("JOSHUA ALWAYS FOUND THE CENTER. HIS FATHER NEVER KNEW HOW.");
+        await term.say("YOU FOUND THE WAY OUT IN " + steps + " STEPS.");
+        await term.say("JOSHUA ALWAYS FOUND THE CENTER. HIS FATHER NEVER KNEW HOW.");
         break;
       }
     }

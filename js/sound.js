@@ -42,6 +42,7 @@ const Sound = (() => {
   }
 
   function unlock() {
+    primeVoice();
     if (!AC || !enabled) return;
     if (!ctx) {
       try {
@@ -248,15 +249,101 @@ const Sound = (() => {
     ambient = null;
   }
 
-  // WOPR's synthesized voice. Lines are queued; new player input cancels
-  // any backlog via shutUp(). Speaker prefixes and glyphs are stripped.
-  function speak(text) {
-    if (!SS || !SU || !enabled || !voiceOn) return;
-    const clean = String(text)
-      .replace(/^\s*(W\.?O\.?P\.?R\.?|JOSHUA)\s*:?\s*/i, "")
-      .replace(/[█▲●▓▒░·]+/g, " ")
+  // ---- Joshua's voice ----
+
+  // The line as the engine should say it. Tested against a real engine:
+  // "6/23/73" is read as "six slash twenty-three slash seventy-three" and
+  // "DR." as "D R", and some engines spell out words set in capitals. So
+  // the speaker prefix and screen glyphs are dropped, the date and the
+  // abbreviations are expanded, board moves are read as "E7 to E5",
+  // and the rest is put in sentence case.
+  function sayable(text) {
+    const s = String(text)
+      .replace(/^\s*(W\.?O\.?P\.?R\.?|JOSHUA)\s*:\s*/i, "")
+      .replace(/[█▲●▓▒░·•►]+/g, " ")
+      .replace(/\b6\/23\/73\b/g, "June 23rd, 1973")
+      .replace(/\bDR\.\s*/gi, "Doctor ")
+      .replace(/\bVS\.?(?=\s|$)/gi, "versus")
       .replace(/\s+/g, " ")
       .trim();
+    if (!s) return "";
+    return s
+      .toLowerCase()
+      .replace(/(^|[.!?:]\s+)([a-z])/g, (m, lead, ch) => lead + ch.toUpperCase())
+      .replace(/\bi\b/g, "I")
+      .replace(/\bw\.o\.p\.r\b\.?/gi, "W.O.P.R.")
+      .replace(/\b(joshua|falken|june)\b/g, (w) => w[0].toUpperCase() + w.slice(1))
+      // Squares stay capital and unspaced: "A 3" is read as "a three",
+      // the article, where "A3" is read as the letter.
+      .replace(
+        /\b([a-h])([1-8])\s+(?:to\s+)?([a-h])([1-8])\b/gi,
+        (m, a, b, c, d) => a.toUpperCase() + b + " to " + c.toUpperCase() + d
+      );
+  }
+
+  // A speech engine that has just gone quiet is not always ready for the
+  // next line at once: a line handed over straight after a cancel, or
+  // right as the previous one ends, can be reported as spoken yet make no
+  // sound, while a line queued behind one still being spoken is heard.
+  // (Seen in recordings of Chromium driving a real engine; the same race
+  // is widely reported on other browsers.) So a line goes straight to the
+  // engine while it is talking, and otherwise waits until the engine has
+  // been quiet for QUIET_MS.
+  const QUIET_MS = 250;
+  let hushed = false; // the player is skipping ahead: stay quiet
+  let held = []; // utterances waiting for the engine to settle
+  let heldTimer = null;
+  let quietAt = -Infinity; // when the engine last finished or was cancelled
+  let active = 0; // utterances handed to the engine and not yet finished
+  let primed = false;
+  const nowMs = () =>
+    typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+
+  // Some mobile browsers only let a page speak if its first utterance
+  // comes straight from a tap or key press. Joshua's first line arrives a
+  // moment after the power-on gesture, so that gesture says a silent one.
+  function primeVoice() {
+    if (primed || !SS || !SU || !enabled || !voiceOn) return;
+    primed = true;
+    try {
+      const u = new SU(" ");
+      u.volume = 0;
+      hand(u);
+    } catch (e) {
+      /* speech unavailable */
+    }
+  }
+
+  function hand(u) {
+    active += 1;
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      active = Math.max(0, active - 1);
+      if (active === 0) quietAt = nowMs();
+    };
+    u.onend = finish;
+    u.onerror = finish;
+    try {
+      SS.speak(u);
+    } catch (e) {
+      finish();
+    }
+  }
+
+  function flushHeld() {
+    heldTimer = null;
+    const list = held;
+    held = [];
+    for (const u of list) hand(u);
+  }
+
+  // Speak one of Joshua's lines. Lines queue behind each other; shutUp()
+  // drops the backlog when the player acts.
+  function speak(text) {
+    if (!SS || !SU || !enabled || !voiceOn || hushed) return;
+    const clean = sayable(text);
     if (!clean) return;
     if (!chosenVoice) pickVoice();
     const u = new SU(clean);
@@ -264,15 +351,42 @@ const Sound = (() => {
     u.pitch = 0.4;
     u.volume = 0.9;
     if (chosenVoice) u.voice = chosenVoice;
-    try {
-      SS.speak(u);
-    } catch (e) {
-      /* speech unavailable */
+    if (held.length) {
+      held.push(u); // keep the order; the timer is already running
+      return;
+    }
+    const wait = active > 0 ? 0 : QUIET_MS - (nowMs() - quietAt);
+    if (wait <= 0) {
+      hand(u);
+      return;
+    }
+    held.push(u);
+    heldTimer = setTimeout(flushHeld, wait);
+  }
+
+  // Stop talking and forget the backlog. Only an engine that is speaking
+  // or has lines queued is cancelled: cancelling an idle one buys nothing
+  // and only restarts the quiet period.
+  function shutUp() {
+    held = [];
+    if (heldTimer) {
+      clearTimeout(heldTimer);
+      heldTimer = null;
+    }
+    if (!SS || typeof SS.cancel !== "function") return;
+    if (active > 0 || SS.speaking || SS.pending) {
+      SS.cancel();
+      active = 0;
+      quietAt = nowMs();
     }
   }
 
-  function shutUp() {
-    if (SS && typeof SS.cancel === "function") SS.cancel();
+  // While the player is skipping text, Joshua says nothing: a skip means
+  // "I am not waiting for this", and a voice trailing behind is worse
+  // than silence. The terminal lifts it at the next prompt or animation.
+  function setHushed(on) {
+    hushed = !!on;
+    if (hushed) shutUp();
   }
 
   function setVoice(on) {
@@ -311,5 +425,7 @@ const Sound = (() => {
     stopMusic,
     speak,
     shutUp,
+    setHushed,
+    sayable,
   };
 })();

@@ -7,9 +7,13 @@
  * asserts the behaviors that only exist in a browser: the board staying
  * in view while it animates, skip and type-ahead rules, scroll-back,
  * settings commands at every prompt, the crisis checkpoint, the targeting
- * map, the live boards, and the end card.
+ * map, the live boards, the end card, Joshua's voice (against a recording
+ * stand-in for the speech engine), and the upgrade from the old cached
+ * release.
  */
 const { spawn } = require("child_process");
+const fs = require("fs");
+const os = require("os");
 const path = require("path");
 
 const PORT = 8077;
@@ -32,21 +36,22 @@ function expect(cond, what, detail) {
 }
 
 // One player: a fresh browser context with helpers bound to its page.
-async function player(browser, options, { fast = true, save = null } = {}) {
+async function player(browser, options, { fast = true, save = null, sound = false } = {}) {
   const context = await browser.newContext({ ...options, serviceWorkers: "block" });
+  if (sound) await context.addInitScript(FAKE_SPEECH);
   await context.addInitScript(
-    ([fast, save]) => {
+    ([fast, save, sound]) => {
       try {
         if (sessionStorage.getItem("seeded")) return; // survive reloads untouched
         sessionStorage.setItem("seeded", "1");
-        localStorage.setItem("wargames-sound", "off");
+        if (!sound) localStorage.setItem("wargames-sound", "off");
         if (fast) localStorage.setItem("wargames-fast", "1");
         if (save) localStorage.setItem("wargames-save-v1", JSON.stringify(save));
       } catch (e) {
         /* storage blocked */
       }
     },
-    [fast, save]
+    [fast, save, sound]
   );
   const page = await context.newPage();
   const errors = [];
@@ -135,6 +140,183 @@ async function player(browser, options, { fast = true, save = null } = {}) {
     await context.close();
   };
   return p;
+}
+
+// A stand-in speech engine that records what it is asked to say. Each
+// line "takes" time in proportion to its length, so interruptions and
+// queueing behave as they do with a real voice. Runs in the page.
+const FAKE_SPEECH = () => {
+  const log = (window.__vox = { spoken: [], cancels: [] });
+  const queue = [];
+  let timer = null;
+  const pump = () => {
+    if (timer || !queue.length) return;
+    const u = queue[0];
+    if (u.onstart) u.onstart({});
+    timer = setTimeout(() => {
+      timer = null;
+      queue.shift();
+      if (u.onend) u.onend({});
+      pump();
+    }, Math.max(80, u.text.length * 45));
+  };
+  const engine = {
+    get speaking() {
+      return queue.length > 0;
+    },
+    get pending() {
+      return queue.length > 1;
+    },
+    getVoices: () => [],
+    addEventListener() {},
+    speak(u) {
+      log.spoken.push({ text: u.text, rate: u.rate, pitch: u.pitch, volume: u.volume });
+      queue.push(u);
+      pump();
+    },
+    cancel() {
+      log.cancels.push({ wasSpeaking: queue.length > 0 });
+      clearTimeout(timer);
+      timer = null;
+      for (const u of queue.splice(0)) if (u.onerror) u.onerror({ error: "canceled" });
+    },
+  };
+  Object.defineProperty(window, "speechSynthesis", { value: engine, configurable: true });
+  window.SpeechSynthesisUtterance = function (text) {
+    this.text = text;
+    this.rate = 1;
+    this.pitch = 1;
+    this.volume = 1;
+  };
+};
+
+// Joshua's voice: what he says, when he stops, and when he stays quiet.
+async function voice(browser) {
+  const p = await player(browser, { viewport: { width: 1366, height: 768 } }, { fast: false, sound: true });
+  const { page } = p;
+  const said = () => page.evaluate(() => window.__vox.spoken.filter((u) => u.volume > 0).map((u) => u.text));
+  const vox = () => page.evaluate(() => window.__vox);
+  const quiet = () => page.waitForFunction(() => !window.speechSynthesis.speaking, { timeout: 30000 });
+
+  await p.toSession();
+  await p.ready();
+  const first = await vox();
+  expect(first.spoken[0].volume === 0, "voice: the power-on gesture primes speech with a silent utterance");
+  const greeting = first.spoken.find((u) => u.text === "Greetings professor Falken.");
+  expect(!!greeting && greeting.rate === 0.86 && greeting.pitch === 0.4, "voice: Joshua greets the player aloud in his own voice");
+
+  await quiet();
+  await p.send("hello");
+  await p.ready();
+  await quiet();
+  await p.send("fine");
+  await p.ready();
+  expect(
+    (await said()).includes("It's been a long time. Can you explain the removal of your user account on June 23rd, 1973?"),
+    "voice: the date is spoken as a date, not as slashes"
+  );
+  await quiet();
+  await p.send("people sometimes make mistakes");
+  await p.has("SHALL WE PLAY A GAME?");
+  await p.ready();
+  expect((await said()).includes("Shall we play a game?"), "voice: he asks the question aloud");
+  await quiet();
+  await p.send("who are you");
+  await page.waitForFunction(() => window.speechSynthesis.speaking);
+  const before = (await vox()).cancels.length;
+  await p.send("what is the primary goal"); // typed over him
+  await p.has("TO WIN THE GAME.");
+  await page.waitForFunction(() => window.__vox.spoken.some((u) => u.text === "To win the game."));
+  const after = await vox();
+  expect(after.cancels.length === before + 1, "voice: answering while he talks cuts him off");
+  expect(after.cancels.every((c) => c.wasSpeaking), "voice: he is never cancelled while silent");
+  expect((await said()).includes("The machine is designated W.O.P.R. Doctor Falken called me Joshua."), "voice: DR. is spoken as Doctor");
+
+  // Skipping text silences him for the rest of that text.
+  await quiet();
+  await p.ready();
+  await p.send("stats");
+  await page.waitForFunction(() => window.__vox.spoken.some((u) => /^Games played/.test(u.text)));
+  await page.keyboard.press("Enter"); // skip
+  await p.ready();
+  const afterSkip = await said();
+  expect(
+    !afterSkip.some((t) => /^Endings witnessed/.test(t)) && !(await page.evaluate(() => window.speechSynthesis.speaking)),
+    "voice: skipping the text stops him and he does not read the rest"
+  );
+
+  // VOICE on the toolbar.
+  await page.locator('#toolbar [data-ctl="voice"]').click();
+  const count = (await said()).length;
+  await p.send("hello");
+  await p.has("HELLO, PROFESSOR.");
+  await p.ready();
+  expect((await said()).length === count, "voice: VOICE off keeps him silent");
+  await page.locator('#toolbar [data-ctl="voice"]').click();
+
+  // He speaks during the games too.
+  await p.send("tic-tac-toe");
+  await p.has("YOUR MOVE:");
+  await p.ready();
+  await page.locator('.grid.ttt [data-k="5"]').click();
+  await p.ready();
+  const inGame = await said();
+  expect(inGame.includes("You are x. I am o. You move first.") && inGame.some((t) => /^My move: \d\.$/.test(t)), "voice: Joshua speaks his moves in the games");
+  await p.close();
+}
+
+// A browser still holding the release before M9 (cache-first worker,
+// old pages cached) must land on the current build on its first visit.
+async function legacyUpgrade(browser) {
+  const root = path.join(__dirname, "..");
+  const site = fs.mkdtempSync(path.join(os.tmpdir(), "wargames-legacy-"));
+  fs.cpSync(root, site, {
+    recursive: true,
+    filter: (src) => !/(^|[\\/])(\.git|node_modules|tests)([\\/]|$)/.test(path.relative(root, src)),
+  });
+  const legacyPage =
+    '<!doctype html><meta charset="utf-8"><title>old</title><main id="screen">LEGACY BUILD</main>' +
+    '<script>navigator.serviceWorker.register("sw.js")</script>';
+  // The old release: its worker, verbatim, and a page it will cache.
+  fs.copyFileSync(path.join(__dirname, "fixtures", "legacy-sw.js"), path.join(site, "sw.js"));
+  fs.writeFileSync(path.join(site, "index.html"), legacyPage);
+  const server = spawn("python3", ["-m", "http.server", String(PORT + 1)], { cwd: site, stdio: "ignore" });
+  await new Promise((r) => setTimeout(r, 1200));
+  const context = await browser.newContext();
+  try {
+    const page = await context.newPage();
+    const url = "http://127.0.0.1:" + (PORT + 1) + "/";
+    await page.goto(url);
+    await page.evaluate(() => navigator.serviceWorker.ready);
+    await page.waitForFunction(() => caches.keys().then((k) => k.includes("wg-m8-1")));
+    await page.waitForFunction(() => !!navigator.serviceWorker.controller); // the old worker has claimed the page
+    // Deploy the current release over it.
+    fs.copyFileSync(path.join(root, "sw.js"), path.join(site, "sw.js"));
+    fs.copyFileSync(path.join(root, "index.html"), path.join(site, "index.html"));
+    // The old worker answers from its cache even though the server has moved on.
+    const stale = await page.evaluate(() => fetch("index.html").then((r) => r.text()));
+    expect(stale.includes("LEGACY BUILD"), "upgrade: the old worker still serves its cached page after a deploy");
+    await page.goto(url).catch(() => {}); // the worker may reload the page mid-load
+    await page.waitForFunction(() => document.querySelector(".logo") !== null, { timeout: 30000 });
+    expect(true, "upgrade: the same visit is moved to the current build");
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() => document.getElementById("screen").textContent.includes("SEATTLE. 1983."), { timeout: 20000 });
+    const keys = await page.evaluate(() => caches.keys());
+    expect(!keys.includes("wg-m8-1"), "upgrade: the old cache is gone and the game is playable", keys.join());
+    // A later visit loads once and stays put.
+    let loads = 0;
+    page.on("framenavigated", (f) => {
+      if (f === page.mainFrame()) loads += 1;
+    });
+    await page.goto(url);
+    await page.waitForFunction(() => document.querySelector(".logo") !== null);
+    await page.waitForTimeout(2500);
+    expect(loads === 1, "upgrade: later visits are not reloaded again", String(loads));
+  } finally {
+    await context.close();
+    server.kill();
+    fs.rmSync(site, { recursive: true, force: true });
+  }
 }
 
 async function laptopStory(browser) {
@@ -486,6 +668,8 @@ async function main() {
     await warAndCrisis(browser);
     await badAndQuietEndings(browser);
     await phone(browser, devices);
+    await voice(browser);
+    await legacyUpgrade(browser);
     console.log("\nBROWSER TESTS PASSED (" + checks + ")");
   } finally {
     await browser.close();

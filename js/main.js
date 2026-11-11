@@ -351,7 +351,6 @@ const scenes = {
     // Browsers keep audio muted until the first interaction, so the
     // power-on keypress doubles as the audio unlock.
     await term.read("", { ghost: true, placeholder: "TAP ABOVE TO POWER ON" });
-    ctx.poweredOn = true;
     if (typeof Sound !== "undefined") {
       Sound.unlock();
       Sound.powerOn();
@@ -1430,12 +1429,6 @@ function fitViewport(term) {
   );
   console.log("Stuck at LOGON? Falken had a son. Or just type SKIP at the start.");
   if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
-    // When a new version takes over while the title is still up, reload
-    // once so this visit runs the new build rather than the next one.
-    const hadController = !!navigator.serviceWorker.controller;
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (hadController && !ctx.poweredOn) window.location.reload();
-    });
     navigator.serviceWorker.register("sw.js").catch(() => {});
   }
   await runScenes(scenes, "boot", ctx);

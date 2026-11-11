@@ -122,6 +122,7 @@ async function playBlackjack(term, state) {
     "Get closer to 21 than Joshua without going over. HIT takes a card, STAND keeps your hand. The dealer stands on 17. QUIT stops."
   );
   try {
+    if (typeof Sound !== "undefined") Sound.speak("BLACK JACK. DEALER STANDS ON 17.");
     await term.type("BLACK JACK. DEALER STANDS ON 17. TYPE HIT OR STAND.");
     while (true) {
       const cards = CardsCore.deck();
@@ -134,7 +135,7 @@ async function playBlackjack(term, state) {
       while (true) {
         const t = norm(await term.read("HIT OR STAND: ", { choices: [{ label: "HIT", cls: "go" }, "STAND", "QUIT"] }));
         if (/^(quit|exit|stop)$/.test(t)) {
-          await term.type("AS YOU WISH.");
+          await term.say("AS YOU WISH.");
           return;
         }
         if (/\b(hit|card)\b|^h$/.test(t)) {
@@ -148,18 +149,18 @@ async function playBlackjack(term, state) {
           continue;
         }
         if (/\b(stand|stay|stick)\b|^s$/.test(t)) break;
-        await term.type("HIT OR STAND, PROFESSOR.");
+        await term.say("HIT OR STAND, PROFESSOR.");
       }
       if (busted) {
-        await term.type("BUST. I WIN.");
+        await term.say("BUST. I WIN.");
       } else {
         while (CardsCore.bjValue(dealer) < 17) dealer.push(cards.pop());
         const dv = CardsCore.bjValue(dealer);
         const pv = CardsCore.bjValue(player);
         await term.type("MY HAND:    " + CardsCore.show(dealer) + "   (" + dv + ")");
-        if (dv > 21 || pv > dv) await term.type("YOU WIN.");
-        else if (dv === pv) await term.type("PUSH. NOBODY WINS. A FAMILIAR RESULT.");
-        else await term.type("I WIN.");
+        if (dv > 21 || pv > dv) await term.say("YOU WIN.");
+        else if (dv === pv) await term.say("PUSH. NOBODY WINS. A FAMILIAR RESULT.");
+        else await term.say("I WIN.");
       }
       state.gamesPlayed = (state.gamesPlayed || 0) + 1;
       const again = norm(await term.read("PLAY AGAIN? (YES/NO): ", { choices: ["YES", "NO"] }));
@@ -175,7 +176,7 @@ async function playPoker(term, state) {
     "Five card draw, one draw. Click the cards you want to throw away and press DRAW, or type DISCARD 1 3 5. KEEP stands pat. Best hand wins. QUIT stops."
   );
   try {
-    await term.type("FIVE CARD DRAW. ONE DRAW, NO STAKES BUT PRIDE.");
+    await term.say("FIVE CARD DRAW. ONE DRAW, NO STAKES BUT PRIDE.");
     while (true) {
       const cards = CardsCore.deck();
       const player = [cards.pop(), cards.pop(), cards.pop(), cards.pop(), cards.pop()];
@@ -212,7 +213,7 @@ async function playPoker(term, state) {
       while (true) {
         const t = norm(await term.read("> ", { choices: chips }));
         if (/^(quit|exit|stop)$/.test(t)) {
-          await term.type("AS YOU WISH.");
+          await term.say("AS YOU WISH.");
           return;
         }
         if (/^(keep|stand|stay|none|draw)$/.test(t)) {
@@ -241,9 +242,9 @@ async function playPoker(term, state) {
         "YOU: " + CardsCore.RANK_NAMES[pr[0]] + ".  ME: " + CardsCore.RANK_NAMES[jr[0]] + "."
       );
       const d = CardsCore.compareRanks(pr, jr);
-      if (d > 0) await term.type("YOU WIN.");
-      else if (d < 0) await term.type("I WIN.");
-      else await term.type("A TIE. THE HOUSE WOULD KEEP THE MONEY. THERE IS NO HOUSE.");
+      if (d > 0) await term.say("YOU WIN.");
+      else if (d < 0) await term.say("I WIN.");
+      else await term.say("A TIE. THE HOUSE WOULD KEEP THE MONEY. THERE IS NO HOUSE.");
       state.gamesPlayed = (state.gamesPlayed || 0) + 1;
       const again = norm(await term.read("PLAY AGAIN? (YES/NO): ", { choices: ["YES", "NO"] }));
       if (!isYes(again)) return;
